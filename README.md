@@ -36,6 +36,9 @@ presentation-evaluator/
 │   │   ├── prior_knowledge.py
 │   │   ├── persona.py
 │   │   └── comparison.py
+│   ├── sample/
+│   │   ├── slide_sample.pdf
+│   │   └── transcript_sample.txt
 │   └── db/
 ├── requirements.txt
 ├── .env

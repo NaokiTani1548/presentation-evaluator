@@ -27,7 +27,7 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
     slide_text = extract_pdf_feature(slide_path)
     transcript = transcribe_audio(audio_path)
 
-    structure = evaluate_structure(transcript, slide_text)
+    structure = evaluate_structure(transcript, slide_path)
     speech = analyze_speech_rate(audio_path)
     knowledge = evaluate_prior_knowledge(transcript, "大学生")
     personas = evaluate_by_personas(transcript, "同学部他学科の教授")
@@ -45,4 +45,17 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
         "persona_feedback": personas,
         "comparison": comparison,
     }
+
+@app.post("/test-transcribe/")
+async def test_transcribe(audio: UploadFile = File(...)):
+    """
+    transcribe_audio関数の動作確認用エンドポイント。
+    アップロードされた動画ファイルから文字起こし結果を返します。
+    """
+    audio_path = f"uploads/{audio.filename}"
+    with open(audio_path, "wb") as f:
+        f.write(await audio.read())
+
+    transcript = transcribe_audio(audio_path)
+    return {"transcript": transcript}
 
