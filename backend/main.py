@@ -46,3 +46,16 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
         "comparison": comparison,
     }
 
+@app.post("/test-transcribe/")
+async def test_transcribe(audio: UploadFile = File(...)):
+    """
+    transcribe_audio関数の動作確認用エンドポイント。
+    アップロードされた動画ファイルから文字起こし結果を返します。
+    """
+    audio_path = f"uploads/{audio.filename}"
+    with open(audio_path, "wb") as f:
+        f.write(await audio.read())
+
+    transcript = transcribe_audio(audio_path)
+    return {"transcript": transcript}
+
