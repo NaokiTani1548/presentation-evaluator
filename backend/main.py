@@ -59,3 +59,16 @@ async def test_transcribe(audio: UploadFile = File(...)):
     transcript = transcribe_audio(audio_path)
     return {"transcript": transcript}
 
+@app.post("/test-speech-rate/")
+async def test_speech_rate(audio: UploadFile = File(...)):
+    """
+    analyze_speech_rate関数の動作確認用エンドポイント。
+    アップロードされた音声ファイルから発話速度・喋り方のAI評価を返します。
+    """
+    audio_path = f"uploads/{audio.filename}"
+    with open(audio_path, "wb") as f:
+        f.write(await audio.read())
+
+    result = analyze_speech_rate(audio_path)
+    return result.model_dump()  # pydanticモデルをdictで返す
+
