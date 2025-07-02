@@ -39,8 +39,8 @@ presentation-evaluator/
 │   ├── sample/
 │   │   ├── slide_sample.pdf
 │   │   └── transcript_sample.txt
-│   └── db/
-├── requirements.txt
+│   ├── db/
+│   └── requirements.txt
 ├── .env
 └── README.md
 ```
