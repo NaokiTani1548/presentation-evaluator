@@ -2,6 +2,7 @@ import os
 import pathlib
 from dotenv import load_dotenv
 from google import genai
+from pydantic import BaseModel
 
 
 """
@@ -10,6 +11,11 @@ structure.py
     - input: 音声の文字起こし & スライド
     - output: 発表構成の評価結果
 """
+
+class StructureEvaluation(BaseModel):
+    transcript_review: str
+    slide_review: str
+    structure_review: str
 
 
 def evaluate_structure(transcript: str, slide_path: str) -> str:
@@ -31,8 +37,12 @@ def evaluate_structure(transcript: str, slide_path: str) -> str:
     # create prompt
     prompt = f"""
 あなたは、プレゼンテーションの評価を行うエージェントです。
-以下の音声の文字起こしと、添付するスライドをもとに、300文字以内でプレゼンテーションの評価を行ってください。
+以下の音声の文字起こしと、添付するスライドをもとに、以下の3つの要素についてそれぞれ300文字以内でプレゼンテーションの評価を行ってください。
+- 文字起こしについて
+- スライドについて
+- 発表構成について
 音声の文字起こし：{transcript_content}
+添付するスライド：{filepath}
 """
 
     # generate content
@@ -46,14 +56,20 @@ def evaluate_structure(transcript: str, slide_path: str) -> str:
             ),
             prompt,
         ],
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": StructureEvaluation,
+        },
     )
 
-    return response.text
+    structure_evaluation = response.parsed
+
+    return structure_evaluation
 
 
 # sample code
 if __name__ == "__main__":
-    result = evaluate_structure(
+    structure_evaluation = evaluate_structure(
         "backend/sample/transcript_sample.txt", "backend/sample/slide_sample.pdf"
     )
-    print(result)
+    print(structure_evaluation)
