@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from services.slide_parser import extract_pdf_feature
 from services.transcribe import transcribe_audio
 from agents.structure import evaluate_structure
@@ -9,6 +9,7 @@ from agents.comparison import compare_presentations
 
 import os
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 
@@ -71,4 +72,14 @@ async def test_speech_rate(audio: UploadFile = File(...)):
 
     result = analyze_speech_rate(audio_path)
     return result.model_dump()  # pydanticモデルをdictで返す
+
+@app.post("/test-persona/")
+async def test_persona(transcript: UploadFile = File(...), personas: List[str] = Form(...)):
+    """
+    evaluate_by_personas関数の動作確認用エンドポイント。
+    アップロードされた発表原稿と複数のペルソナ名を受け取り、各立場からのAIフィードバックを返します。
+    """
+    transcript_text = (await transcript.read()).decode("utf-8")
+    result = evaluate_by_personas(transcript_text, personas)
+    return [fb.model_dump() for fb in result]
 
