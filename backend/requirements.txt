@@ -12,10 +12,6 @@ google-api-python-client==2.174.0
 google-auth==2.40.3
 google-auth-httplib2==0.2.0
 google-genai==1.24.0
-<<<<<<< HEAD
-google-generativeai==0.8.5
-=======
->>>>>>> 76c3a44 (<chabge> 依存関係の反映)
 googleapis-common-protos==1.70.0
 grpcio==1.73.1
 grpcio-status==1.71.2
