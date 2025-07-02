@@ -30,7 +30,7 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
     structure = evaluate_structure(transcript, slide_text)
     speech = analyze_speech_rate(audio_path)
     knowledge = evaluate_prior_knowledge(transcript, "大学生")
-    personas = evaluate_by_personas(transcript)
+    personas = evaluate_by_personas(transcript, "同学部他学科の教授")
 
     comparison = None
     if prev_transcript:

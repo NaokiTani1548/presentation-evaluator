@@ -47,7 +47,7 @@ presentation-evaluator/
 ## セットアップ
 
 ```bash
-$
+$ git clone git@github.com:NaokiTani1548/presentation-evaluator.git
 $ cd presentation-evaluator
 $ python3 -m venv venv
 $ source venv/bin/activate
@@ -133,21 +133,26 @@ $ git commit -m '<コミットメッセージ（できるだけ詳しく）>'
 $ git push
 ```
 
-ex コンフリクト発生時
+## コンフリクト発生時
 
 ### main ブランチ
 
 ```bash
+$ git switch main
 $ git pull
 ```
 
 ### コンフリクトが起きたブランチ
 
 ```bash
-$ git rebase
+$ git switch <作業ブランチ>
+$ git rebase main
 ```
 
-### ブランチ切り替え
+以下 URL の手順(6)移行を参照
+https://qiita.com/C_HERO/items/06669621a1eb12d8799e
+
+## ブランチ切り替え
 
 ```bash
 $ git switch <切り替え先ブランチ名>
