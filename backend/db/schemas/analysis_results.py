@@ -10,10 +10,10 @@ class AnalysisResult(BaseModel):
         min_length=1,
     )
 
-    date: datetime | None = Field(
-        default=None,
+    date: datetime = Field(
+        default=datetime.now(),
         description="日付（未設定の場合は現在時刻が自動設定されます）",
-        example=None,
+        example=datetime.now(),
     )
 
     ai_evaluation_result: str = Field(
