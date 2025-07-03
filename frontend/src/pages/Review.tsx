@@ -67,13 +67,8 @@ const StepperSample: React.FC = () => {
                   parsed = data.result;
                 }
               }
-              let text = '';
-              if (typeof parsed === 'object' && parsed !== null) {
-                text = Object.values(parsed).map(String).join('\n');
-              } else {
-                text = String(parsed);
-              }
-              cards.push({ label: data.label, result: text });
+              // ここでtext化せず、オブジェクトや配列はそのまま格納
+              cards.push({ label: data.label, result: parsed });
             }
           }
           setResults([...cards]);
@@ -260,16 +255,22 @@ const StepperSample: React.FC = () => {
                   <CardContent>
                     <Typography variant="subtitle1" color="primary">{tabResults[tabIdx]?.label}</Typography>
                     {/* PriorKnowledge用テーブル表示 */}
-                    {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (
-                      <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
-                    )}
-                    {/* {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (() => {
+                    {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (() => {
                       let parsed: any = tabResults[tabIdx]?.result;
                       if (typeof parsed === 'string') {
                         try { parsed = JSON.parse(parsed); } catch { parsed = null; }
                       }
-                      return parsed ? renderPriorKnowledgeTable(parsed) : null;
-                    })()} */}
+                      if (parsed && typeof parsed === 'object' && parsed.prerequisites && Array.isArray(parsed.prerequisites)) {
+                        return (
+                          <>
+                            <Typography variant="body2" style={{ whiteSpace: 'pre-line', marginBottom: 8 }}>{parsed.summary}</Typography>
+                            {renderPriorKnowledgeTable(parsed)}
+                          </>
+                        );
+                      } else {
+                        return <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>;
+                      }
+                    })()}
                     {/* 通常のテキスト表示 */}
                     {!tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (
                       <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
