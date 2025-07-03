@@ -17,6 +17,8 @@ const StepperSample: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ResultCard[]>([]);
   const [tabIdx, setTabIdx] = useState(0);
+  const [audioSample, setAudioSample] = useState<string | null>(null);
+  const [slideModResult, setSlideModResult] = useState<any>(null);
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVideoFile(e.target.files[0]);
@@ -58,7 +60,16 @@ const StepperSample: React.FC = () => {
           for (const line of lines) {
             if (line.trim()) {
               const data = JSON.parse(line);
-              // resultがJSON文字列ならパースして値を連結
+              // 新しいラベルの処理
+              if (data.label === 'お手本音声サンプル（話速改善用）' && data.type === 'audio/wav-base64') {
+                setAudioSample(data.result); // base64文字列を保存
+                continue;
+              }
+              if (data.label === 'スライド修正案（構成改善用）') {
+                setSlideModResult(data.result); // スライド修正案を保存
+                continue;
+              }
+              // 通常のカードとして格納
               let parsed: any = data.result;
               if (typeof data.result === 'string') {
                 try {
@@ -67,13 +78,17 @@ const StepperSample: React.FC = () => {
                   parsed = data.result;
                 }
               }
-              let text = '';
-              if (typeof parsed === 'object' && parsed !== null) {
-                text = Object.values(parsed).map(String).join('\n');
+              // ここでObject型はテキスト化して格納
+              if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+                // 例: {review: "..."} のみなら中身だけ
+                if (Object.keys(parsed).length === 1 && parsed.review) {
+                  cards.push({ label: data.label, result: parsed.review });
+                } else {
+                  cards.push({ label: data.label, result: JSON.stringify(parsed, null, 2) });
+                }
               } else {
-                text = String(parsed);
+                cards.push({ label: data.label, result: parsed });
               }
-              cards.push({ label: data.label, result: text });
             }
           }
           setResults([...cards]);
@@ -260,16 +275,22 @@ const StepperSample: React.FC = () => {
                   <CardContent>
                     <Typography variant="subtitle1" color="primary">{tabResults[tabIdx]?.label}</Typography>
                     {/* PriorKnowledge用テーブル表示 */}
-                    {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (
-                      <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
-                    )}
-                    {/* {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (() => {
+                    {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (() => {
                       let parsed: any = tabResults[tabIdx]?.result;
                       if (typeof parsed === 'string') {
                         try { parsed = JSON.parse(parsed); } catch { parsed = null; }
                       }
-                      return parsed ? renderPriorKnowledgeTable(parsed) : null;
-                    })()} */}
+                      if (parsed && typeof parsed === 'object' && parsed.prerequisites && Array.isArray(parsed.prerequisites)) {
+                        return (
+                          <>
+                            <Typography variant="body2" style={{ whiteSpace: 'pre-line', marginBottom: 8 }}>{parsed.summary}</Typography>
+                            {renderPriorKnowledgeTable(parsed)}
+                          </>
+                        );
+                      } else {
+                        return <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>;
+                      }
+                    })()}
                     {/* 通常のテキスト表示 */}
                     {!tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (
                       <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
@@ -280,7 +301,7 @@ const StepperSample: React.FC = () => {
             </Box>
           )}
           {summaryResult && (
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <Card sx={{ minWidth: 300, maxWidth: 700, border: '2px solid #1976d2', background: '#f5faff', p: 2 }}>
                 <CardContent>
                   <Typography variant="h6" color="primary" align="center">総評エージェントの意見</Typography>
@@ -296,6 +317,23 @@ const StepperSample: React.FC = () => {
                     </ResponsiveContainer>
                   </Box>
                   <Typography variant="body1" style={{ whiteSpace: 'pre-line' }} align="center">{summaryText}</Typography>
+                  {/* お手本音声サンプルがあれば再生UIを表示 */}
+                  {audioSample && (
+                    <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Typography variant="subtitle2" color="primary" align="center">お手本音声サンプル（話速改善用）</Typography>
+                      <audio controls style={{ marginTop: 8 }}>
+                        <source src={`data:audio/wav;base64,${audioSample}`} type="audio/wav" />
+                        お使いのブラウザは audio タグをサポートしていません。
+                      </audio>
+                    </Box>
+                  )}
+                  {/* スライド修正案があれば画像として表示 */}
+                  {slideModResult && (
+                    <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Typography variant="subtitle2" color="primary" align="center">スライド修正案（構成改善用）</Typography>
+                      <img src={`data:image/png;base64,${slideModResult}`} alt="slide modification" style={{ marginTop: 8, maxWidth: 500, borderRadius: 8, border: '1px solid #ccc' }} />
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Box>
