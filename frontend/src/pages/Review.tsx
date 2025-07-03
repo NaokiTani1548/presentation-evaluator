@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Stepper, Step, StepLabel, Button, Typography, Paper, Box, LinearProgress, Alert, Card, CardContent } from '@mui/material';
+import React, { useState } from 'react';
+import { Stepper, Step, StepLabel, Button, Typography, Paper, Box, LinearProgress, Alert, Card, CardContent, Tabs, Tab } from '@mui/material';
 
 const steps = ['アップロード', '評価中', '完了'];
 
-// 表示用型
 interface ResultCard {
   label: string;
   result: string;
-  display: string; // 表示中のテキスト
 }
 
 const StepperSample: React.FC = () => {
@@ -17,9 +15,7 @@ const StepperSample: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ResultCard[]>([]);
-
-  // 1文字ずつ表示用のref
-  const intervalRefs = useRef<(ReturnType<typeof setInterval> | null)[]>([]);
+  const [tabIdx, setTabIdx] = useState(0);
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVideoFile(e.target.files[0]);
@@ -28,41 +24,10 @@ const StepperSample: React.FC = () => {
     if (e.target.files && e.target.files[0]) setPdfFile(e.target.files[0]);
   };
 
-  // 1文字ずつ表示する関数
-  const animateText = (fullText: string, idx: number) => {
-    let i = 0;
-    intervalRefs.current[idx] = setInterval(() => {
-      setResults(prev => {
-        const newResults = [...prev];
-        if (newResults[idx]) {
-          newResults[idx] = {
-            ...newResults[idx],
-            display: fullText.slice(0, i + 1),
-          };
-        }
-        return newResults;
-      });
-      i++;
-      if (i >= fullText.length) {
-        if (intervalRefs.current[idx]) clearInterval(intervalRefs.current[idx]!);
-      }
-    }, 15); // 速度調整
-  };
-
-  // 新しいカードが追加されたらアニメーション開始
-  useEffect(() => {
-    if (results.length === 0) return;
-    const lastIdx = results.length - 1;
-    const last = results[lastIdx];
-    if (last.display === '') {
-      animateText(last.result, lastIdx);
-    }
-    // eslint-disable-next-line
-  }, [results.length]);
-
   const handleUpload = async () => {
     setError(null);
     setResults([]);
+    setTabIdx(0);
     if (!videoFile || !pdfFile) {
       setError('動画ファイルとPDFファイルの両方を選択してください');
       return;
@@ -73,6 +38,7 @@ const StepperSample: React.FC = () => {
       const formData = new FormData();
       formData.append('slide', pdfFile); // slide
       formData.append('audio', videoFile); // audio
+      formData.append('user_id', '0');
       const response = await fetch('http://127.0.0.1:8000/evaluate/', {
         method: 'POST',
         body: formData,
@@ -106,7 +72,7 @@ const StepperSample: React.FC = () => {
               } else {
                 text = String(parsed);
               }
-              cards.push({ label: data.label, result: text, display: '' });
+              cards.push({ label: data.label, result: text });
             }
           }
           setResults([...cards]);
@@ -126,9 +92,12 @@ const StepperSample: React.FC = () => {
     setPdfFile(null);
     setError(null);
     setResults([]);
-    intervalRefs.current.forEach(ref => ref && clearInterval(ref));
-    intervalRefs.current = [];
+    setTabIdx(0);
   };
+
+  // 総評だけ分離
+  const summaryResult = results.find(r => r.label.includes('総評エージェントの意見'));
+  const tabResults = results.filter(r => !r.label.includes('総評エージェントの意見'));
 
   return (
     <Paper elevation={2} sx={{ p: 4, borderRadius: 3 }}>
@@ -154,36 +123,51 @@ const StepperSample: React.FC = () => {
           {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
         </Box>
       )}
-      {activeStep === 1 && (
+      {(activeStep === 1 || activeStep === 2) && (
         <Box>
-          <Typography sx={{ mb: 2 }}>評価中です。しばらくお待ちください...</Typography>
-          <LinearProgress />
-          <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            {results.map((res, idx) => (
-              <Card key={idx} sx={{ minWidth: 250, maxWidth: 400 }}>
+          {activeStep === 1 && (
+            <>
+              <Typography sx={{ mb: 2 }}>評価中です。しばらくお待ちください...</Typography>
+              <LinearProgress />
+            </>
+          )}
+          {tabResults.length > 0 && (
+            <Box sx={{ mt: 2, display: 'flex' }}>
+              <Tabs
+                orientation="vertical"
+                value={tabIdx}
+                onChange={(_, v) => setTabIdx(v)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{ borderRight: 1, borderColor: 'divider', minWidth: 180 }}
+              >
+                {tabResults.map((res, idx) => (
+                  <Tab key={idx} label={res.label} />
+                ))}
+              </Tabs>
+              <Box sx={{ ml: 2, flex: 1, display: 'flex', justifyContent: 'center' }}>
+                <Card sx={{ minWidth: 250, maxWidth: 600 }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" color="primary">{tabResults[tabIdx]?.label}</Typography>
+                    <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
+                  </CardContent>
+                </Card>
+              </Box>
+            </Box>
+          )}
+          {summaryResult && (
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+              <Card sx={{ minWidth: 300, maxWidth: 700, border: '2px solid #1976d2', background: '#f5faff' }}>
                 <CardContent>
-                  <Typography variant="subtitle1" color="primary">{res.label}</Typography>
-                  <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{res.display}</Typography>
+                  <Typography variant="h6" color="primary">{summaryResult.label}</Typography>
+                  <Typography variant="body1" style={{ whiteSpace: 'pre-line' }}>{summaryResult.result}</Typography>
                 </CardContent>
               </Card>
-            ))}
-          </Box>
-        </Box>
-      )}
-      {activeStep === 2 && (
-        <Box>
-          <Typography>すべて完了しました！</Typography>
-          <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            {results.map((res, idx) => (
-              <Card key={idx} sx={{ minWidth: 250, maxWidth: 400 }}>
-                <CardContent>
-                  <Typography variant="subtitle1" color="primary">{res.label}</Typography>
-                  <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{res.result}</Typography>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
-          <Button onClick={handleReset} sx={{ mt: 2 }}>リセット</Button>
+            </Box>
+          )}
+          {activeStep === 2 && (
+            <Button onClick={handleReset} sx={{ mt: 2 }}>リセット</Button>
+          )}
         </Box>
       )}
     </Paper>
