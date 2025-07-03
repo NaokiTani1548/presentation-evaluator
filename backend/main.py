@@ -7,13 +7,27 @@ from agents.prior_knowledge import evaluate_prior_knowledge
 from agents.persona import evaluate_by_personas
 from agents.comparison import compare_presentations
 
+from db.db import initialize_database, async_session
+from contextlib import asynccontextmanager  # Lifecycle management
+
 import os
 from dotenv import load_dotenv
 from typing import List
 
+# DB setup
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+# called when server starts
+
+    # initialize database
+    async with async_session() as session:
+        await initialize_database(session)
+    yield
+
+
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 @app.post("/evaluate/")
 async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...), prev_transcript: str = ""):
