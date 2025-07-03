@@ -19,6 +19,7 @@ const StepperSample: React.FC = () => {
   const [tabIdx, setTabIdx] = useState(0);
   const [audioSample, setAudioSample] = useState<string | null>(null);
   const [slideModResult, setSlideModResult] = useState<any>(null);
+  const [slideModText, setSlideModText] = useState<string | null>(null);
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVideoFile(e.target.files[0]);
@@ -65,8 +66,9 @@ const StepperSample: React.FC = () => {
                 setAudioSample(data.result); // base64文字列を保存
                 continue;
               }
-              if (data.label === 'スライド修正案（構成改善用）') {
-                setSlideModResult(data.result); // スライド修正案を保存
+              if (data.label === 'スライド修正案（構成改善用）' && data.type === 'slide_modification') {
+                setSlideModResult(data.result?.image_base64 || null);
+                setSlideModText(data.result?.text || null);
                 continue;
               }
               // 通常のカードとして格納
@@ -80,11 +82,13 @@ const StepperSample: React.FC = () => {
               }
               // ここでObject型はテキスト化して格納
               if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                // 例: {review: "..."} のみなら中身だけ
-                if (Object.keys(parsed).length === 1 && parsed.review) {
-                  cards.push({ label: data.label, result: parsed.review });
+                // 知識レベルエージェントだけは従来通り
+                if (data.label.includes('知識レベルエージェント')) {
+                  cards.push({ label: data.label, result: JSON.stringify(parsed) });
                 } else {
-                  cards.push({ label: data.label, result: JSON.stringify(parsed, null, 2) });
+                  // それ以外は値だけを連結してテキスト化
+                  const values = Object.values(parsed).filter(v => typeof v === 'string');
+                  cards.push({ label: data.label, result: values.join('\n') });
                 }
               } else {
                 cards.push({ label: data.label, result: parsed });
@@ -305,7 +309,6 @@ const StepperSample: React.FC = () => {
               <Card sx={{ minWidth: 300, maxWidth: 700, border: '2px solid #1976d2', background: '#f5faff', p: 2 }}>
                 <CardContent>
                   <Typography variant="h6" color="primary" align="center">総評エージェントの意見</Typography>
-
                   <Box sx={{ width: 350, height: 300, mx: 'auto' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
@@ -327,10 +330,13 @@ const StepperSample: React.FC = () => {
                       </audio>
                     </Box>
                   )}
-                  {/* スライド修正案があれば画像として表示 */}
+                  {/* スライド修正案があればテキストと画像を表示 */}
                   {slideModResult && (
                     <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <Typography variant="subtitle2" color="primary" align="center">スライド修正案（構成改善用）</Typography>
+                      {slideModText && (
+                        <Typography variant="body2" style={{ whiteSpace: 'pre-line', marginBottom: 8 }} align="center">{slideModText}</Typography>
+                      )}
                       <img src={`data:image/png;base64,${slideModResult}`} alt="slide modification" style={{ marginTop: 8, maxWidth: 500, borderRadius: 8, border: '1px solid #ccc' }} />
                     </Box>
                   )}

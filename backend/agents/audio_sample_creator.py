@@ -98,11 +98,20 @@ def create_audio_sample_from_text(
 
     # バイナリデータを直接返す
     audio_data = response.candidates[0].content.parts[0].inline_data.data
+
+    # WAV形式でなければPCM→WAV変換
+    if not audio_data.startswith(b'RIFF'):
+        from io import BytesIO
+        buf = BytesIO()
+        wave_file(buf, audio_data, channels=1, rate=24000, sample_width=2)
+        audio_data = buf.getvalue()
+
     return audio_data
 
 
-def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
-    with wave.open(filename, "wb") as wf:
+def wave_file(fileobj, pcm, channels=1, rate=24000, sample_width=2):
+    import wave
+    with wave.open(fileobj, "wb") as wf:
         wf.setnchannels(channels)
         wf.setsampwidth(sample_width)
         wf.setframerate(rate)

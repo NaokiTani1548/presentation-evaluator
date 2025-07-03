@@ -21,27 +21,19 @@ class ResponseSchema(BaseModel):
     fixes: list[SlideFixItem]
 
 
-def modify_slide(slide_path: str) -> str:
-
+def modify_slide(slide_path: str) -> dict:
     first_response = call_first_request(slide_path)
-
     modification_page_number = first_response.most_worst_slide_number
     modification_page_fix = first_response.fixes[0]
     modification_suggestion = modification_page_fix.suggestion
     modification_issue = modification_page_fix.issue
-
     print("page number: ", modification_page_number)
     print("suggestion: ", modification_suggestion)
     print("issue: ", modification_issue)
-
-    # png_path = f"uploads/target_page_{modification_page_number}.png"
     png_path = f"target_page.png"
-
     save_target_page_as_png(slide_path, modification_page_number, png_path)
-
-    second_response = call_second_request(png_path, modification_issue, modification_suggestion)
-
-    return
+    text, image_b64 = call_second_request(png_path, modification_issue, modification_suggestion)
+    return {"text": text, "image_base64": image_b64}
 
 
 def call_first_request(slide_path: str) -> ResponseSchema:
@@ -115,34 +107,32 @@ def save_target_page_as_png(slide_path: str, target_page_number: int, output_pat
     return
 
 
-def call_second_request(image_path: str, modification_issue: str, modification_suggestion: str) -> str:
-
+def call_second_request(image_path: str, modification_issue: str, modification_suggestion: str) -> tuple[str, str]:
     image = PIL.Image.open(image_path)
-
     load_dotenv()
-
     api_key = os.getenv("GEMINI_API_KEY")
     client = genai.Client(api_key=api_key)
-
     prompt = f"""
 この画像は研究発表で使用するスライドのうち、改善が必要な一ページです。
 改善点：{modification_issue}
 改善内容：{modification_suggestion}
 改善した画像を出力して下さい
 """
-
     response = client.models.generate_content(
         model="gemini-2.0-flash-preview-image-generation",
         contents=[prompt, image],
         config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"]),
     )
-
+    text = ""
+    image_b64 = None
+    import base64
     for part in response.candidates[0].content.parts:
-        if part.text is not None:
-            print(part.text)
-        elif part.inline_data is not None:
-            image = Image.open(BytesIO((part.inline_data.data)))
-            image.show()
+        if getattr(part, "text", None) is not None:
+            text += part.text.strip() + "\n"
+        elif getattr(part, "inline_data", None) is not None:
+            img_bytes = part.inline_data.data
+            image_b64 = base64.b64encode(img_bytes).decode('utf-8')
+    return text.strip(), image_b64
 
 
 if __name__ == "__main__":

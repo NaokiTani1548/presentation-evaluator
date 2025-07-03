@@ -157,7 +157,7 @@ async def evaluate(
             yield json.dumps({
                 "label": "スライド修正案（構成改善用）",
                 "result": slide_mod_result,
-                "type": "image/png-base64"
+                "type": "slide_modification"
             }) + "\n"
         # 全て完了後にメール通知
         subject = "[AI評価] 発表評価が完了しました"
