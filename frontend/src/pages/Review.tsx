@@ -1,7 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Stepper, Step, StepLabel, Button, Typography, Paper, Box, LinearProgress, Alert, Card, CardContent } from '@mui/material';
 
 const steps = ['アップロード', '評価中', '完了'];
+
+// 表示用型
+interface ResultCard {
+  label: string;
+  result: string;
+  display: string; // 表示中のテキスト
+}
 
 const StepperSample: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -9,7 +16,10 @@ const StepperSample: React.FC = () => {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<{ label: string; result: string }[]>([]);
+  const [results, setResults] = useState<ResultCard[]>([]);
+
+  // 1文字ずつ表示用のref
+  const intervalRefs = useRef<(ReturnType<typeof setInterval> | null)[]>([]);
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVideoFile(e.target.files[0]);
@@ -17,6 +27,38 @@ const StepperSample: React.FC = () => {
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setPdfFile(e.target.files[0]);
   };
+
+  // 1文字ずつ表示する関数
+  const animateText = (fullText: string, idx: number) => {
+    let i = 0;
+    intervalRefs.current[idx] = setInterval(() => {
+      setResults(prev => {
+        const newResults = [...prev];
+        if (newResults[idx]) {
+          newResults[idx] = {
+            ...newResults[idx],
+            display: fullText.slice(0, i + 1),
+          };
+        }
+        return newResults;
+      });
+      i++;
+      if (i >= fullText.length) {
+        if (intervalRefs.current[idx]) clearInterval(intervalRefs.current[idx]!);
+      }
+    }, 15); // 速度調整
+  };
+
+  // 新しいカードが追加されたらアニメーション開始
+  useEffect(() => {
+    if (results.length === 0) return;
+    const lastIdx = results.length - 1;
+    const last = results[lastIdx];
+    if (last.display === '') {
+      animateText(last.result, lastIdx);
+    }
+    // eslint-disable-next-line
+  }, [results.length]);
 
   const handleUpload = async () => {
     setError(null);
@@ -39,7 +81,7 @@ const StepperSample: React.FC = () => {
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
-        let cards: { label: string; result: string }[] = [];
+        let cards: ResultCard[] = [];
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -49,7 +91,22 @@ const StepperSample: React.FC = () => {
           for (const line of lines) {
             if (line.trim()) {
               const data = JSON.parse(line);
-              cards.push(data);
+              // resultがJSON文字列ならパースして値を連結
+              let parsed: any = data.result;
+              if (typeof data.result === 'string') {
+                try {
+                  parsed = JSON.parse(data.result);
+                } catch {
+                  parsed = data.result;
+                }
+              }
+              let text = '';
+              if (typeof parsed === 'object' && parsed !== null) {
+                text = Object.values(parsed).map(String).join('\n');
+              } else {
+                text = String(parsed);
+              }
+              cards.push({ label: data.label, result: text, display: '' });
             }
           }
           setResults([...cards]);
@@ -69,6 +126,8 @@ const StepperSample: React.FC = () => {
     setPdfFile(null);
     setError(null);
     setResults([]);
+    intervalRefs.current.forEach(ref => ref && clearInterval(ref));
+    intervalRefs.current = [];
   };
 
   return (
@@ -104,23 +163,7 @@ const StepperSample: React.FC = () => {
               <Card key={idx} sx={{ minWidth: 250, maxWidth: 400 }}>
                 <CardContent>
                   <Typography variant="subtitle1" color="primary">{res.label}</Typography>
-                  {(() => {
-                    let parsed: any = res.result;
-                    if (typeof res.result === 'string') {
-                      try {
-                        parsed = JSON.parse(res.result);
-                      } catch {
-                        parsed = res.result;
-                      }
-                    }
-                    if (typeof parsed === 'object' && parsed !== null) {
-                      return Object.values(parsed).map((val, i) => (
-                        <Typography variant="body2" key={i} paragraph>{String(val)}</Typography>
-                      ));
-                    } else {
-                      return <Typography variant="body2">{String(parsed)}</Typography>;
-                    }
-                  })()}
+                  <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{res.display}</Typography>
                 </CardContent>
               </Card>
             ))}
@@ -135,25 +178,7 @@ const StepperSample: React.FC = () => {
               <Card key={idx} sx={{ minWidth: 250, maxWidth: 400 }}>
                 <CardContent>
                   <Typography variant="subtitle1" color="primary">{res.label}</Typography>
-                  {(() => {
-                    let parsed: any = res.result;
-                    if (typeof res.result === 'string') {
-                      try {
-                        parsed = JSON.parse(res.result);
-                      } catch {
-                        parsed = res.result;
-                      }
-                    }
-                    if (typeof parsed === 'object' && parsed !== null) {
-                      return Object.values(parsed).map((val, i) => (
-                        <Typography variant="body2" key={i} paragraph>
-                          {String(val)}
-                        </Typography>
-                      ));
-                    } else {
-                      return <Typography variant="body2">{String(parsed)}</Typography>;
-                    }
-                  })()}
+                  <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{res.result}</Typography>
                 </CardContent>
               </Card>
             ))}
