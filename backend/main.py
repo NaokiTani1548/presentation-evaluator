@@ -122,6 +122,28 @@ async def evaluate(
                 "result": master_summary.model_dump_json(),
             }
         ) + "\n"
+
+        # 追加: speech_scoreが3点以下なら音声サンプル生成
+        if master_summary.speech_score <= 3:
+            audio_sample = await asyncio.to_thread(create_audio_sample_from_transcript, transcript)
+            # バイナリデータをbase64エンコードして返す
+            import base64
+            audio_b64 = base64.b64encode(audio_sample).decode('utf-8')
+            yield json.dumps({
+                "label": "お手本音声サンプル（話速改善用）",
+                "result": audio_b64,
+                "type": "audio/wav-base64"
+            }) + "\n"
+
+        # 追加: structure_scoreが3点以下ならスライド修正案生成
+        if master_summary.structure_score <= 3:
+            from agents.slide_modification import modify_slide
+            slide_mod_result = await asyncio.to_thread(modify_slide, slide_path)
+            yield json.dumps({
+                "label": "スライド修正案（構成改善用）",
+                "result": slide_mod_result,
+                "type": "image/png-base64"
+            }) + "\n"
         # 全て完了後にメール通知
         subject = "[AI評価] 発表評価が完了しました"
         body = f"{user_id}様\n\nAIによる発表評価が完了しました。\n\n総評:\n{master_summary.summary}\n\nご確認ください。"
