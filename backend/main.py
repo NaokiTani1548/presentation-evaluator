@@ -1,5 +1,4 @@
 from fastapi import FastAPI, UploadFile, File, Form, Depends
-from services.slide_parser import extract_pdf_feature
 from services.transcribe import transcribe_audio
 from agents.structure import evaluate_structure
 from agents.speech_rate import analyze_speech_rate
