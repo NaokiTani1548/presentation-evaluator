@@ -9,6 +9,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import asyncio
+from datetime import datetime, timedelta
+import random
 
 from db.db import initialize_database, async_session, get_dbsession
 
@@ -265,3 +267,23 @@ async def signin(
         "email_address": "test@example.com",
         "password": password
     }
+
+
+@app.post("/log/test")
+async def log_test(user_id: str = Form(...)):
+    # テスト用ダミーデータを10件返す（日時・スコアはランダム）
+    now = datetime.now()
+    data = []
+    for i in range(10):
+        dt = now - timedelta(days=9-i, hours=random.randint(0,23), minutes=random.randint(0,59))
+        data.append({
+            "user_id": user_id,
+            "date": dt.strftime("%Y-%m-%d %H:%M"),
+            "summary": f"テスト総評 test_data",
+            "structure_score": random.randint(1, 5),
+            "speech_score": random.randint(1, 5),
+            "knowledge_score": random.randint(1, 5),
+            "personas_score": random.randint(1, 5),
+            "comparison_score": random.randint(1, 5),
+        })
+    return data

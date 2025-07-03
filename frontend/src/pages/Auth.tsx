@@ -29,17 +29,16 @@ const Auth: React.FC<AuthProps> = ({ onSigninSuccess }) => {
   const handleSignup = async () => {
     setSignupResult(null);
     try {
-      const res = await fetch('http://127.0.0.1:8000/signup/test', {
+      const formData = new FormData();
+      formData.append('user_name', signupName);
+      formData.append('email_address', signupEmail);
+      formData.append('password', signupPassword);
+      const res = await fetch('http://127.0.0.1:8000/users/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_name: signupName,
-          email_address: signupEmail,
-          password: signupPassword,
-        }),
+        body: formData,
       });
       const data = await res.json();
-      if (data.user_id) {
+      if (data && data.user_id) {
         setSignupResult(`登録成功！あなたのユーザーID: ${data.user_id} \n サインインに必要なので忘れないように保存してください`);
       } else {
         setDialogMsg('登録に失敗しました');
@@ -55,16 +54,15 @@ const Auth: React.FC<AuthProps> = ({ onSigninSuccess }) => {
     setSigninResult(null);
     setUserInfo(null);
     try {
-      const res = await fetch('http://127.0.0.1:8000/signin/test', {
+      const formData = new FormData();
+      formData.append('user_id', signinId);
+      formData.append('password', signinPassword);
+      const res = await fetch('http://127.0.0.1:8000/users/signin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: signinId,
-          password: signinPassword,
-        }),
+        body: formData,
       });
       const data = await res.json();
-      if (data.user_id && data.user_id !== null) {
+      if (data && data.user_id) {
         setUserInfo(data);
         setSigninResult('サインイン成功');
         if (onSigninSuccess) onSigninSuccess({
