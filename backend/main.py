@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from agents.master import generate_summary
+from services.notify import send_notification_email
 
 
 # DB setup
@@ -50,6 +51,7 @@ async def evaluate(
     slide: UploadFile = File(...),
     audio: UploadFile = File(...),
     user_id: str = Form(...),
+    user_email: str = "naoki.1121.hit.and.run48@gmail.com",
     session: AsyncSession = Depends(get_dbsession),
 ):
     slide_path = f"uploads/{slide.filename}"
@@ -80,6 +82,10 @@ async def evaluate(
 
         master_summary = await asyncio.to_thread(generate_summary, structure, speech, knowledge, personas, comparison)
         yield json.dumps({"label": "総評エージェントの意見", "result": master_summary.model_dump_json()}) + "\n"
+        # 全て完了後にメール通知
+        subject = "[AI評価] 発表評価が完了しました"
+        body = f"{user_id}様\n\nAIによる発表評価が完了しました。\n\n総評:\n{master_summary.summary}\n\nご確認ください。"
+        await asyncio.to_thread(send_notification_email, user_email, subject, body)
     
     return StreamingResponse(result_stream(), media_type="text/event-stream")
 
