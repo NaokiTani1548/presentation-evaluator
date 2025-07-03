@@ -59,11 +59,7 @@ async def evaluate(
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
     transcript = transcribe_audio(audio_path)
-
     async def result_stream():
-        slide_text = extract_pdf_feature(slide_path)
-        yield json.dumps({"label": "スライドAIの意見", "result": slide_text}) + "\n"
-
         structure = evaluate_structure(transcript, slide_path)
         yield json.dumps({"label": "構成エージェントの意見", "result": structure.model_dump_json()}) + "\n"
 
@@ -81,6 +77,8 @@ async def evaluate(
         yield json.dumps({"label": "比較AIの意見", "result": comparison}) + "\n"
     
     return StreamingResponse(await result_stream(), media_type="text/event-stream")
+
+
 
 
 
