@@ -35,5 +35,17 @@ def evaluate_by_personas(transcript: str, personas: List[str]) -> List[PersonaFe
             },
         )
         persona_feedback = response.parsed
-        results.append(persona_feedback)
+        # Ensure always PersonaFeedback object
+        if isinstance(persona_feedback, PersonaFeedback):
+            results.append(persona_feedback)
+        elif isinstance(persona_feedback, dict):
+            # Try to parse dict to PersonaFeedback
+            try:
+                pf = PersonaFeedback(**persona_feedback)
+                results.append(pf)
+            except Exception:
+                results.append(PersonaFeedback(persona=persona, feedback=str(persona_feedback)))
+        else:
+            # Fallback: wrap string or unknown type
+            results.append(PersonaFeedback(persona=persona, feedback=str(persona_feedback)))
     return results
