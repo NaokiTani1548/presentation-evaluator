@@ -39,7 +39,14 @@ async def get_analysis_results_by_user_id(
         analysis_results: list[AnalysisResultSchema] = [
             AnalysisResultSchema(
                 user_id=analysis_result.user_id,
+                date=analysis_result.date,
                 ai_evaluation_result=analysis_result.ai_evaluation_result,
+                summary=analysis_result.summary,
+                structure_score=analysis_result.structure_score,
+                speech_score=analysis_result.speech_score,
+                knowledge_score=analysis_result.knowledge_score,
+                personas_score=analysis_result.personas_score,
+                comparison_score=analysis_result.comparison_score,
             )
             for analysis_result in db_analysis_results
         ]
@@ -61,9 +68,14 @@ async def post_analysis_result(
         # convert AnalysisResultSchema to AnalysisResultModel
         db_analysis_result = AnalysisResultModel(
             user_id=analysis_result.user_id,
-            date=analysis_result.date
-            or datetime.now(),  # dateがNoneの場合は現在時刻を使用
+            date=analysis_result.date,
             ai_evaluation_result=analysis_result.ai_evaluation_result,
+            summary=analysis_result.summary,
+            structure_score=analysis_result.structure_score,
+            speech_score=analysis_result.speech_score,
+            knowledge_score=analysis_result.knowledge_score,
+            personas_score=analysis_result.personas_score,
+            comparison_score=analysis_result.comparison_score,
         )
 
         # add analysis result to database
