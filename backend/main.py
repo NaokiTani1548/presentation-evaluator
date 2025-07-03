@@ -57,6 +57,7 @@ async def evaluate(
         f.write(await slide.read())
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
+
     transcript = transcribe_audio(audio_path)
     async def result_stream():
         structure = evaluate_structure(transcript, slide_path)
@@ -76,10 +77,6 @@ async def evaluate(
         yield json.dumps({"label": "比較AIの意見", "result": comparison}) + "\n"
     
     return StreamingResponse(await result_stream(), media_type="text/event-stream")
-
-
-
-
 
 @app.post("/test-transcribe/")
 async def test_transcribe(audio: UploadFile = File(...)):
