@@ -52,6 +52,8 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
     
+    transcript = transcribe_audio(audio_path)
+    
     comparison = None
     if prev_transcript:
         comparison = compare_presentations(prev_transcript, transcript)
@@ -60,25 +62,22 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
         slide_text = extract_pdf_feature(slide_path)
         yield json.dumps({"label": "スライドAIの意見", "result": slide_text}) + "\n"
 
-        transcript = transcribe_audio(audio_path)
-        yield json.dumps({"label": "文字起こしAIの意見", "result": transcript}) + "\n"
-
         structure = evaluate_structure(transcript, slide_path)
-        yield json.dumps({"label": "構成AIの意見", "result": structure}) + "\n"
+        yield json.dumps({"label": "構成AIの意見", "result": structure.model_dump()}) + "\n"
 
         speech = analyze_speech_rate(audio_path)
-        yield json.dumps({"label": "話速AIの意見", "result": speech}) + "\n"
+        yield json.dumps({"label": "話速AIの意見", "result": speech.model_dump()}) + "\n"
 
         knowledge = evaluate_prior_knowledge(transcript, "大学生")
-        yield json.dumps({"label": "知識レベルAIの意見", "result": knowledge}) + "\n"
+        yield json.dumps({"label": "知識レベルAIの意見", "result": knowledge.model_dump()}) + "\n"
 
         personas = evaluate_by_personas(transcript, ["同学部他学科の教授", "国語の先生"])
         for p in personas:
-            yield json.dumps({"label": f"{p.persona}AIの意見", "result": p.feedback}) + "\n"
+            yield json.dumps({"label": f"{p.persona}AIの意見", "result": p.feedback.model_dump()}) + "\n"
 
         if prev_transcript:
             comparison = compare_presentations(prev_transcript, transcript)
-            yield json.dumps({"label": "比較AIの意見", "result": comparison}) + "\n"
+            yield json.dumps({"label": "比較AIの意見", "result": comparison.model_dump()}) + "\n"
     
     return StreamingResponse(result_stream(), media_type="text/event-stream")
 
