@@ -3,6 +3,13 @@ from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel
 from typing import Any, List, Optional
+from db.models.analysis_results import AnalysisResult
+from datetime import datetime
+import asyncio
+from db.cruds.analysis_results import post_analysis_result
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
+from db.db import get_dbsession
 
 class MasterSummary(BaseModel):
     summary: str  # 総評
@@ -13,12 +20,14 @@ class MasterSummary(BaseModel):
     comparison_score: int  # 比較 5段階（比較がある場合のみ）
 
 
-def generate_summary(
+async def generate_summary(
+    user_id: str,
     structure: Any,
     speech: Any,
     knowledge: Any,
     personas: List[Any],
-    comparison: Any = None
+    comparison: Any = None,
+    db_session: AsyncSession = Depends(get_dbsession),
 ) -> MasterSummary:
     """
     各エージェントの出力をもとに総評（全体サマリー）と各観点の5段階評価を生成する関数。
@@ -61,5 +70,21 @@ def generate_summary(
             "response_schema": MasterSummary,
         },
     )
-    master_summary = response.parsed
+    master_summary: MasterSummary = response.parsed
+
+    analysis_result = AnalysisResult(
+        user_id=user_id,
+        date=datetime.now(),
+        ai_evaluation_result=master_summary.model_dump_json(),
+        summary=master_summary.summary,
+        structure_score=master_summary.structure_score,
+        speech_score=master_summary.speech_score,
+        knowledge_score=master_summary.knowledge_score,
+        personas_score=master_summary.personas_score,            
+        comparison_score=master_summary.comparison_score,
+    )
+
+    # データベースに保存
+    await post_analysis_result(db_session, analysis_result)
+
     return master_summary
