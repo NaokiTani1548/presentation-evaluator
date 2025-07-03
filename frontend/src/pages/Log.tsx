@@ -27,7 +27,7 @@ const Log: React.FC = () => {
       try {
         const formData = new FormData();
         formData.append('user_id', user_id || '');
-        const res = await fetch('http://127.0.0.1:8000/analysis_results/log/test', {
+        const res = await fetch('http://127.0.0.1:8000/log/test', {
           method: 'POST',
           body: formData,
         });
