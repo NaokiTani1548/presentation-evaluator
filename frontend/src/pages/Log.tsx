@@ -1,5 +1,9 @@
 import React from 'react';
 
+const user_id = localStorage.getItem('user_id');
+const user_name = localStorage.getItem('user_name');
+const email_address = localStorage.getItem('email_address');
+
 const Log: React.FC = () => {
   return (
     <div>

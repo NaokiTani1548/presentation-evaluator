@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form, Depends
+from fastapi import FastAPI, UploadFile, File, Form, Depends, Body
 from services.transcribe import transcribe_audio
 from agents.structure import evaluate_structure
 from agents.speech_rate import analyze_speech_rate
@@ -178,3 +178,32 @@ async def test_structure(transcript: str = Form(...), slide: UploadFile = File(.
         f.write(await slide.read())
     result = evaluate_structure(transcript, slide_path)
     return result.model_dump()
+
+
+@app.post("/signup/test")
+async def signup(
+    user_name: str = Body(...),
+    email_address: str = Body(...),
+    password: str = Body(...)
+):
+    # 必ず成功するダミーAPI
+    return {
+        "user_id": "12345",
+        "user_name": user_name,
+        "email_address": email_address,
+        "password": password
+    }
+
+
+@app.post("/signin/test")
+async def signin(
+    user_id: str = Body(...),
+    password: str = Body(...)
+):
+    # 必ず成功するダミーAPI
+    return {
+        "user_id": user_id,
+        "user_name": "テストユーザー",
+        "email_address": "test@example.com",
+        "password": password
+    }

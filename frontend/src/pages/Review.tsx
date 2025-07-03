@@ -141,6 +141,10 @@ const StepperSample: React.FC = () => {
     }
   }
 
+  const user_id = localStorage.getItem('user_id');
+  const user_name = localStorage.getItem('user_name');
+  const email_address = localStorage.getItem('email_address');
+
   return (
     <Paper elevation={2} sx={{ p: 4, borderRadius: 3 }}>
       <Typography variant="h5" mb={2} color="primary">Review Meeting</Typography>
@@ -153,11 +157,41 @@ const StepperSample: React.FC = () => {
       </Stepper>
       {activeStep === 0 && (
         <Box>
-          <Typography sx={{ mb: 2 }}>動画ファイルとPDFファイルをアップロードしてください</Typography>
-          <input type="file" accept="video/*" onChange={handleVideoChange} />
-          <input type="file" accept="application/pdf" onChange={handlePdfChange} style={{ marginLeft: 16 }} />
+          <Typography sx={{ mb: 2 }}>動画ファイル（mp4）とスライドファイル（pdf）をアップロードしてください</Typography>
+          <label>
+            <input
+              type="file"
+              accept="video/mp4"
+              onChange={handleVideoChange}
+              required
+              style={{ display: 'none' }}
+            />
+            <Button variant="outlined" component="span">動画ファイル（.mp4）選択</Button>
+            {videoFile && <span style={{ marginLeft: 8 }}>{videoFile.name}</span>}
+          </label>
+          <label style={{ marginLeft: 24 }}>
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={handlePdfChange}
+              required
+              style={{ display: 'none' }}
+            />
+            <Button variant="outlined" component="span">スライド（.pdf）選択</Button>
+            {pdfFile && <span style={{ marginLeft: 8 }}>{pdfFile.name}</span>}
+          </label>
           <Box sx={{ mt: 2 }}>
-            <Button variant="contained" onClick={handleUpload} disabled={uploading || !videoFile || !pdfFile}>
+            <Button
+              variant="contained"
+              onClick={handleUpload}
+              disabled={
+                uploading ||
+                !videoFile ||
+                !pdfFile ||
+                (videoFile && videoFile.type !== 'video/mp4') ||
+                (pdfFile && pdfFile.type !== 'application/pdf')
+              }
+            >
               アップロード
             </Button>
           </Box>

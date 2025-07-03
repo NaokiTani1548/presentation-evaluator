@@ -63,7 +63,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </Toolbar>
         <List>
           <ListItem disablePadding>
-            <ListItemButton onClick={() => navigate('/')}> 
+            <ListItemButton onClick={() => navigate('/home')}> 
               <ListItemIcon>
                 <HomeIcon />
               </ListItemIcon>
