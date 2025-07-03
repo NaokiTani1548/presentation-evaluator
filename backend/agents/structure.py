@@ -12,10 +12,9 @@ structure.py
     - output: 発表構成の評価結果
 """
 
+
 class StructureEvaluation(BaseModel):
-    transcript_review: str
-    slide_review: str
-    structure_review: str
+    review: str
 
 
 def evaluate_structure(transcript: str, slide_path: str) -> str:
@@ -32,13 +31,27 @@ def evaluate_structure(transcript: str, slide_path: str) -> str:
 
     # create prompt
     prompt = f"""
-あなたは、プレゼンテーションの評価を行うエージェントです。
-以下の音声の文字起こしと、添付するスライドをもとに、以下の3つの要素についてそれぞれ300文字以内でプレゼンテーションの評価を行ってください。
-- 文字起こしについて
-- スライドについて
-- 発表構成について
-音声の文字起こし：{transcript}
-添付するスライド：{filepath}
+あなたは、プレゼンテーション全体の構成（Structure）を評価する専門エージェントです。
+
+あなたの目的は、「スライドの流れ」と「発表の読み上げ（音声の文字起こし）」の両方を統合的に読み取り、
+論理展開の自然さ・聴衆の理解促進・構成上の工夫や問題点を明らかにすることです。
+
+以下の3つの観点から、**300文字以内の構成レビュー**を行ってください：
+
+1. 構成全体の論理性・自然さ（導入→展開→結論）
+2. 情報の順序・階層性・スライドとの整合性
+3. 聴衆が理解しやすい構成工夫がされていたか
+
+※良い点・改善点の両方を簡潔に触れてください。
+※過度に肯定的な評価は避け、具体的な指摘を優先してください。
+
+---
+音声の文字起こし：
+{transcript}
+
+---
+スライド：
+{filepath}
 """
 
     # generate content
