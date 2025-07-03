@@ -73,6 +73,7 @@ const StepperSample: React.FC = () => {
       const formData = new FormData();
       formData.append('slide', pdfFile); // slide
       formData.append('audio', videoFile); // audio
+      formData.append('user_id', '0');
       const response = await fetch('http://127.0.0.1:8000/evaluate/', {
         method: 'POST',
         body: formData,

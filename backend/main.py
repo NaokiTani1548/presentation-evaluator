@@ -8,6 +8,7 @@ from agents.comparison import compare_presentations
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import json
+import asyncio
 
 from db.db import initialize_database, async_session, get_dbsession
 from db.db_router import router as db_router
@@ -16,6 +17,7 @@ import os
 from dotenv import load_dotenv
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
+from agents.master import generate_summary
 
 
 # DB setup
@@ -60,23 +62,26 @@ async def evaluate(
 
     transcript = transcribe_audio(audio_path)
     async def result_stream():
-        structure = evaluate_structure(transcript, slide_path)
+        structure = await asyncio.to_thread(evaluate_structure, transcript, slide_path)
         yield json.dumps({"label": "構成エージェントの意見", "result": structure.model_dump_json()}) + "\n"
 
-        speech = analyze_speech_rate(audio_path)
+        speech = await asyncio.to_thread(analyze_speech_rate, audio_path)
         yield json.dumps({"label": "話速エージェントの意見", "result": speech.model_dump_json()}) + "\n"
 
-        knowledge = evaluate_prior_knowledge(transcript)
+        knowledge = await asyncio.to_thread(evaluate_prior_knowledge, transcript)
         yield json.dumps({"label": "知識レベルエージェントの意見", "result": knowledge.model_dump_json()}) + "\n"
 
-        personas = evaluate_by_personas(transcript, ["同学部他学科の教授", "国語の先生"])
+        personas = await asyncio.to_thread(evaluate_by_personas, transcript, ["同学部他学科の教授", "国語の先生"])
         for p in personas:
             yield json.dumps({"label": f"{p.persona}エージェントの意見", "result": p.feedback}) + "\n"
-
+        
         comparison = await compare_presentations(user_id, transcript, session)
-        yield json.dumps({"label": "比較AIの意見", "result": comparison}) + "\n"
+        yield json.dumps({"label": "比較AIの意見", "result": comparison.model_dump_json()}) + "\n"
+
+        master_summary = await asyncio.to_thread(generate_summary, structure, speech, knowledge, personas, comparison)
+        yield json.dumps({"label": "総評エージェントの意見", "result": master_summary.model_dump_json()}) + "\n"
     
-    return StreamingResponse(await result_stream(), media_type="text/event-stream")
+    return StreamingResponse(result_stream(), media_type="text/event-stream")
 
 @app.post("/test-transcribe/")
 async def test_transcribe(audio: UploadFile = File(...)):

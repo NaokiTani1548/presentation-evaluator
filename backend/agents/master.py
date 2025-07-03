@@ -10,7 +10,7 @@ class MasterSummary(BaseModel):
     speech_score: int     # 話速 5段階
     knowledge_score: int  # 知識レベル 5段階
     personas_score: int   # ペルソナ 5段階
-    comparison_score: Optional[int] = None  # 比較 5段階（比較がある場合のみ）
+    comparison_score: int  # 比較 5段階（比較がある場合のみ）
 
 
 def generate_summary(
@@ -46,7 +46,7 @@ def generate_summary(
 - 比較: {comparison_text}
 
 これらをもとに、全体の総評（summary）を300文字以内で日本語でまとめ、
-さらに各観点（構成, 話速, 知識レベル, ペルソナ, 比較）について5段階評価（1-5, 比較は任意）をJSON形式で出力してください。
+さらに各観点（構成, 話速, 知識レベル, ペルソナ, 比較）について5段階評価（1-5）をJSON形式で出力してください。
 """
 
     load_dotenv()
