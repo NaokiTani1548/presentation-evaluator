@@ -40,11 +40,12 @@ app.include_router(db_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  #要変更
+    allow_origins=["http://localhost:5173"],  # 要変更
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.post("/evaluate/")
 async def evaluate(
@@ -63,31 +64,55 @@ async def evaluate(
         f.write(await audio.read())
 
     transcript = transcribe_audio(audio_path)
+
     async def result_stream():
         structure = await asyncio.to_thread(evaluate_structure, transcript, slide_path)
-        yield json.dumps({"label": "構成エージェントの意見", "result": structure.model_dump_json()}) + "\n"
+        yield json.dumps(
+            {"label": "構成エージェントの意見", "result": structure.model_dump_json()}
+        ) + "\n"
 
         speech = await asyncio.to_thread(analyze_speech_rate, audio_path)
-        yield json.dumps({"label": "話速エージェントの意見", "result": speech.model_dump_json()}) + "\n"
+        yield json.dumps(
+            {"label": "話速エージェントの意見", "result": speech.model_dump_json()}
+        ) + "\n"
 
         knowledge = await asyncio.to_thread(evaluate_prior_knowledge, transcript)
-        yield json.dumps({"label": "知識レベルエージェントの意見", "result": knowledge.model_dump_json()}) + "\n"
+        yield json.dumps(
+            {
+                "label": "知識レベルエージェントの意見",
+                "result": knowledge.model_dump_json(),
+            }
+        ) + "\n"
 
-        personas = await asyncio.to_thread(evaluate_by_personas, transcript, ["同学部他学科の教授", "国語の先生"])
+        personas = await asyncio.to_thread(
+            evaluate_by_personas, transcript, ["同学部他学科の教授", "国語の先生"]
+        )
         for p in personas:
-            yield json.dumps({"label": f"{p.persona}エージェントの意見", "result": p.feedback}) + "\n"
-        
-        comparison = await compare_presentations(user_id, transcript, session)
-        yield json.dumps({"label": "比較AIの意見", "result": comparison.model_dump_json()}) + "\n"
+            yield json.dumps(
+                {"label": f"{p.persona}エージェントの意見", "result": p.feedback}
+            ) + "\n"
 
-        master_summary = await asyncio.to_thread(generate_summary, structure, speech, knowledge, personas, comparison)
-        yield json.dumps({"label": "総評エージェントの意見", "result": master_summary.model_dump_json()}) + "\n"
+        comparison = await compare_presentations(user_id, transcript, session)
+        yield json.dumps(
+            {"label": "比較AIの意見", "result": comparison.model_dump_json()}
+        ) + "\n"
+
+        master_summary = await asyncio.to_thread(
+            generate_summary, structure, speech, knowledge, personas, comparison
+        )
+        yield json.dumps(
+            {
+                "label": "総評エージェントの意見",
+                "result": master_summary.model_dump_json(),
+            }
+        ) + "\n"
         # 全て完了後にメール通知
         subject = "[AI評価] 発表評価が完了しました"
         body = f"{user_id}様\n\nAIによる発表評価が完了しました。\n\n総評:\n{master_summary.summary}\n\nご確認ください。"
         await asyncio.to_thread(send_notification_email, user_email, subject, body)
-    
+
     return StreamingResponse(result_stream(), media_type="text/event-stream")
+
 
 @app.post("/test-transcribe/")
 async def test_transcribe(audio: UploadFile = File(...)):
@@ -137,4 +162,19 @@ async def test_compare(
     session: AsyncSession = Depends(get_dbsession),
 ):
     result = await compare_presentations(user_id, transcript, session)
+    return result.model_dump()
+
+
+@app.post("/test-prior-knowledge/")
+async def test_prior_knowledge(transcript: str = Form(...)):
+    result = evaluate_prior_knowledge(transcript)
+    return result.model_dump()
+
+
+@app.post("/test-structure/")
+async def test_structure(transcript: str = Form(...), slide: UploadFile = File(...)):
+    slide_path = f"uploads/{slide.filename}"
+    with open(slide_path, "wb") as f:
+        f.write(await slide.read())
+    result = evaluate_structure(transcript, slide_path)
     return result.model_dump()
