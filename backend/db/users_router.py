@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import get_dbsession
@@ -16,18 +16,12 @@ router = APIRouter(tags=["users"], prefix="/users")
 # /sinup
 @router.post("/signup")
 async def signup(
-    user_name: str,
-    email_address: str,
-    password: str,
+    user_name: str = Form(...),
+    email_address: str = Form(...),
+    password: str = Form(...),
     db: AsyncSession = Depends(get_dbsession),
 ) -> UserBase | None:
     # UserBaseスキーマを使ってユーザー情報を作成
-    user = UserBase(
-        user_name=user_name,
-        email_address=email_address,
-        password=password,
-    )
-
     created_user = await post_user(db, user_name, email_address, password)
 
     return created_user
@@ -36,8 +30,8 @@ async def signup(
 # /signin
 @router.post("/signin")
 async def signin(
-    user_id: str,
-    password: str,
+    user_id: str = Form(...),
+    password: str = Form(...),
     db: AsyncSession = Depends(get_dbsession),
 ) -> UserBase | None:
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Stepper, Step, StepLabel, Button, Typography, Paper, Box, LinearProgress, Alert, Card, CardContent, Tabs, Tab } from '@mui/material';
+import { Stepper, Step, StepLabel, Button, Typography, Paper, Box, LinearProgress, Alert, Card, CardContent, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 const steps = ['アップロード', '評価中', '完了'];
@@ -145,6 +145,35 @@ const StepperSample: React.FC = () => {
   const user_name = localStorage.getItem('user_name');
   const email_address = localStorage.getItem('email_address');
 
+  // PriorKnowledge用テーブル描画関数
+  const renderPriorKnowledgeTable = (priorKnowledge: any) => {
+    if (!priorKnowledge || !priorKnowledge.prerequisites || !Array.isArray(priorKnowledge.prerequisites)) return null;
+    return (
+      <TableContainer component={Paper} sx={{ my: 2 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>用語</TableCell>
+              <TableCell>説明</TableCell>
+              <TableCell>レベル</TableCell>
+              <TableCell>説明の粒度</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {priorKnowledge.prerequisites.map((item: any, idx: number) => (
+              <TableRow key={idx}>
+                <TableCell>{item.term}</TableCell>
+                <TableCell>{item.description}</TableCell>
+                <TableCell>{item.level}</TableCell>
+                <TableCell>{item.explained_level}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
+
   return (
     <Paper elevation={2} sx={{ p: 4, borderRadius: 3 }}>
       <Typography variant="h5" mb={2} color="primary">Review Meeting</Typography>
@@ -230,7 +259,21 @@ const StepperSample: React.FC = () => {
                 <Card sx={{ minWidth: 250, maxWidth: 600 }}>
                   <CardContent>
                     <Typography variant="subtitle1" color="primary">{tabResults[tabIdx]?.label}</Typography>
-                    <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
+                    {/* PriorKnowledge用テーブル表示 */}
+                    {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (
+                      <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
+                    )}
+                    {/* {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (() => {
+                      let parsed: any = tabResults[tabIdx]?.result;
+                      if (typeof parsed === 'string') {
+                        try { parsed = JSON.parse(parsed); } catch { parsed = null; }
+                      }
+                      return parsed ? renderPriorKnowledgeTable(parsed) : null;
+                    })()} */}
+                    {/* 通常のテキスト表示 */}
+                    {!tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (
+                      <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
+                    )}
                   </CardContent>
                 </Card>
               </Box>
