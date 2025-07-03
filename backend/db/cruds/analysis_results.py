@@ -1,5 +1,5 @@
 # sqlalchemy
-from sqlalchemy import select, delete
+from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,8 +9,10 @@ from pydantic import ValidationError
 # schemas
 from ..schemas.analysis_results import AnalysisResult as AnalysisResultSchema
 
-# modelsa
-from .analysis_results import AnalysisResult as AnalysisResultModel
+# models
+from ..models.analysis_results import AnalysisResult as AnalysisResultModel
+
+from datetime import datetime
 
 
 # get analysis results by user id
@@ -59,6 +61,8 @@ async def post_analysis_result(
         # convert AnalysisResultSchema to AnalysisResultModel
         db_analysis_result = AnalysisResultModel(
             user_id=analysis_result.user_id,
+            date=analysis_result.date
+            or datetime.now(),  # dateがNoneの場合は現在時刻を使用
             ai_evaluation_result=analysis_result.ai_evaluation_result,
         )
 
@@ -76,19 +80,19 @@ async def post_analysis_result(
         raise Exception(f"Unexpected error: {str(e)}")
 
 
-# for development
-async def delete_all_analysis_results_for_development(db_session: AsyncSession):
+# analysis results table自体を削除する関数（開発用）
+async def delete_analysis_results_table_for_development(db_session: AsyncSession):
     """
-    開発用：全ての分析結果を削除する関数
+    開発用：analysis_resultsテーブル自体を削除する関数
     本番環境では使用しないでください
     """
     try:
-        # delete analysis result from database
-        await db_session.execute(delete(AnalysisResultModel))
+        # drop analysis_results table from database
+        await db_session.execute(text("DROP TABLE IF EXISTS analysis_results"))
         await db_session.commit()
-        print("All analysis results deleted successfully")
+        print("Analysis results table deleted successfully")
 
     except Exception as e:
         await db_session.rollback()
-        print(f"Failed to delete analysis results: {str(e)}")
+        print(f"Failed to delete analysis results table: {str(e)}")
         raise

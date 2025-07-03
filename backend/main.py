@@ -8,8 +8,8 @@ from agents.persona import evaluate_by_personas
 from agents.comparison import compare_presentations
 
 from db.db import initialize_database, async_session
+from db.db_router import router as db_router
 from contextlib import asynccontextmanager  # Lifecycle management
-
 import os
 from dotenv import load_dotenv
 from typing import List
@@ -28,6 +28,8 @@ async def lifespan(app: FastAPI):
 load_dotenv()
 
 app = FastAPI(lifespan=lifespan)
+
+app.include_router(db_router)
 
 @app.post("/evaluate/")
 async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...), prev_transcript: str = ""):
