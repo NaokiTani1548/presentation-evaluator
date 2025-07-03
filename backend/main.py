@@ -309,22 +309,28 @@ async def signin(user_id: str = Body(...), password: str = Body(...)):
 @app.post("/log/test")
 async def log_test(user_id: str = Form(...)):
     # テスト用ダミーデータを10件返す（日時・スコアはランダム）
-    now = datetime.now()
+    # 2025年7月3日15:00~7月4日7:46までの間で10件のモックデータを生成（スコア・時間ともにばらけさせる）
+    from random import choice
+    base_time = datetime(2025, 7, 3, 15, 0)
+    # 不定期な時間（分単位）
+    time_deltas = [0, 37, 95, 181, 222, 355, 501, 666, 789, 946]  # 例: 0分後, 37分後, ...
+    # ばらけたスコア
+    structure_scores =   [2, 4, 3, 5, 2, 4, 3, 5, 2, 4]
+    speech_scores =      [3, 2, 5, 4, 2, 3, 5, 2, 4, 5]
+    knowledge_scores =   [1, 3, 2, 4, 5, 2, 3, 5, 2, 4]
+    personas_scores =    [2, 5, 3, 2, 4, 3, 5, 2, 4, 3]
+    comparison_scores =  [4, 2, 5, 3, 2, 5, 3, 4, 2, 5]
     data = []
     for i in range(10):
-        dt = now - timedelta(
-            days=9 - i, hours=random.randint(0, 23), minutes=random.randint(0, 59)
-        )
-        data.append(
-            {
-                "user_id": user_id,
-                "date": dt.strftime("%Y-%m-%d %H:%M"),
-                "summary": f"テスト総評 test_data",
-                "structure_score": random.randint(1, 5),
-                "speech_score": random.randint(1, 5),
-                "knowledge_score": random.randint(1, 5),
-                "personas_score": random.randint(1, 5),
-                "comparison_score": random.randint(1, 5),
-            }
-        )
+        dt = base_time + timedelta(minutes=time_deltas[i])
+        data.append({
+            "user_id": user_id,
+            "date": dt.strftime("%Y-%m-%d %H:%M"),
+            "summary": f"テスト総評 test_data {i+1}",
+            "structure_score": structure_scores[i],
+            "speech_score": speech_scores[i],
+            "knowledge_score": knowledge_scores[i],
+            "personas_score": personas_scores[i],
+            "comparison_score": comparison_scores[i],
+        })
     return data
