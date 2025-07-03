@@ -30,10 +30,6 @@ def evaluate_structure(transcript: str, slide_path: str) -> str:
     # read slide file
     filepath = pathlib.Path(slide_path)
 
-    # read transcript file
-    with open(transcript, "r") as f:
-        transcript_content = f.read()
-
     # create prompt
     prompt = f"""
 あなたは、プレゼンテーションの評価を行うエージェントです。
@@ -41,7 +37,7 @@ def evaluate_structure(transcript: str, slide_path: str) -> str:
 - 文字起こしについて
 - スライドについて
 - 発表構成について
-音声の文字起こし：{transcript_content}
+音声の文字起こし：{transcript}
 添付するスライド：{filepath}
 """
 
