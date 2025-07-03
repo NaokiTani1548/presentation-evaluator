@@ -19,6 +19,11 @@ from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from agents.master import generate_summary
 from services.notify import send_notification_email
+from agents.audio_sample_creator import (
+    create_audio_sample_from_transcript,
+    create_audio_sample_from_text,
+)
+import io
 
 
 # DB setup
@@ -112,6 +117,24 @@ async def evaluate(
         await asyncio.to_thread(send_notification_email, user_email, subject, body)
 
     return StreamingResponse(result_stream(), media_type="text/event-stream")
+
+
+@app.post("/test-audio-sample/")
+async def test_audio_sample(audio: UploadFile = File(...)) -> StreamingResponse:
+    """
+    文字起こしテキストからAI音声サンプル（wavバイナリデータ）を直接返すエンドポイント
+    """
+    audio_path = f"uploads/{audio.filename}"
+    with open(audio_path, "wb") as f:
+        f.write(await audio.read())
+
+    transcript = transcribe_audio(audio_path)
+
+    # Gemini TTSで音声データ（バイナリ）を生成
+    audio_data = create_audio_sample_from_transcript(transcript)
+
+    # バイナリデータをBytesIOにラップして返す
+    return StreamingResponse(io.BytesIO(audio_data), media_type="audio/wav")
 
 
 @app.post("/test-transcribe/")

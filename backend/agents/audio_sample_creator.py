@@ -11,7 +11,7 @@ class Transcript(BaseModel):
 
 
 def create_audio_sample_from_transcript(
-    transcript: str, output_wav: str, voice_name: str = "Kore"
+    transcript: str,
 ):
     """
     文字起こしテキストから音声ファイル（wav）を直接生成して、ファイルパスを返す関数
@@ -23,13 +23,9 @@ def create_audio_sample_from_transcript(
     original_transcript = create_original_transcript(api_key, transcript)
 
     # Gemini TTSで音声データを生成
-    audio_data = create_audio_sample_from_text(
-        original_transcript, voice_name=voice_name
-    )
+    audio_data = create_audio_sample_from_text(original_transcript)
 
-    wave_file(output_wav, audio_data)
-
-    return output_wav  # ファイルパスを返す
+    return audio_data
 
 
 def create_original_transcript(api_key: str, transcript: str):
@@ -79,22 +75,15 @@ def create_audio_sample_from_text(
 あなたはユーザーのプレゼン練習を助けるアシスタントの1人です。
 あなたにはその中でも特に「原稿の読み方」に特化して、ユーザーのお手本となる音声を作成して欲しいです。
 
-添付する原稿を、プレゼンとして適切なスピードや抑揚をつけて読み上げてください。
-    """
+以下のプレゼン原稿を、プレゼンとして適切なスピードや抑揚をつけて読み上げてください。
 
-    contents = [
-        {
-            "role": "user",
-            "parts": [
-                prompt,
-                transcript,
-            ],
-        }
-    ]
+原稿：
+{transcript}
+    """
 
     response = client.models.generate_content(
         model="gemini-2.5-flash-preview-tts",
-        contents=contents,
+        contents=prompt,
         config=types.GenerateContentConfig(
             response_modalities=["AUDIO"],
             speech_config=types.SpeechConfig(
