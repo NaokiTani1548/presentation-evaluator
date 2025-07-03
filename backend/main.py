@@ -6,6 +6,9 @@ from agents.speech_rate import analyze_speech_rate
 from agents.prior_knowledge import evaluate_prior_knowledge
 from agents.persona import evaluate_by_personas
 from agents.comparison import compare_presentations
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+import json
 
 from db.db import initialize_database, async_session, get_dbsession
 from db.db_router import router as db_router
@@ -33,6 +36,13 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(db_router)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  #要変更
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/evaluate/")
 async def evaluate(
@@ -49,25 +59,32 @@ async def evaluate(
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
 
-    slide_text = extract_pdf_feature(slide_path)
-    transcript = transcribe_audio(audio_path)
 
-    structure = evaluate_structure(transcript, slide_path)
-    speech = analyze_speech_rate(audio_path)
-    knowledge = evaluate_prior_knowledge(transcript, "大学生")
-    personas = evaluate_by_personas(transcript, "同学部他学科の教授")
+    async def result_stream():
+        slide_text = extract_pdf_feature(slide_path)
+        yield json.dumps({"label": "スライドAIの意見", "result": slide_text}) + "\n"
 
-    comparison = await compare_presentations(user_id, transcript, session)
+        transcript = transcribe_audio(audio_path)
+        yield json.dumps({"label": "文字起こしAIの意見", "result": transcript}) + "\n"
 
-    return {
-        "slide_text": slide_text,
-        "transcript": transcript,
-        "structure": structure,
-        "speech_rate": speech,
-        "prior_knowledge": knowledge,
-        "persona_feedback": personas,
-        "comparison": comparison,
-    }
+        structure = evaluate_structure(transcript, slide_path)
+        yield json.dumps({"label": "構成AIの意見", "result": structure}) + "\n"
+
+        speech = analyze_speech_rate(audio_path)
+        yield json.dumps({"label": "話速AIの意見", "result": speech}) + "\n"
+
+        knowledge = evaluate_prior_knowledge(transcript, "大学生")
+        yield json.dumps({"label": "知識レベルAIの意見", "result": knowledge}) + "\n"
+
+        personas = evaluate_by_personas(transcript, ["同学部他学科の教授", "国語の先生"])
+        for p in personas:
+            yield json.dumps({"label": f"{p.persona}AIの意見", "result": p.feedback}) + "\n"
+
+        comparison = await compare_presentations(user_id, transcript, session)
+        yield json.dumps({"label": "比較AIの意見", "result": comparison}) + "\n"
+    
+    return StreamingResponse(await result_stream(), media_type="text/event-stream")
+
 
 
 @app.post("/test-transcribe/")
