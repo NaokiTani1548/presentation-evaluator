@@ -72,9 +72,6 @@ def call_first_request(slide_path: str) -> ResponseSchema:
 - 問題点（issue）は1文で
 - 修正内容（suggestion）も1文で
 - JSONリスト形式で出力すること
-
-# スライド資料：
-{filepath}
 """
 
     #          ↑ please edit here ↑

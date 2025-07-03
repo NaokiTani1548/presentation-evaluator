@@ -45,13 +45,8 @@ def evaluate_structure(transcript: str, slide_path: str) -> str:
 ※良い点・改善点の両方を簡潔に触れてください。
 ※過度に肯定的な評価は避け、具体的な指摘を優先してください。
 
----
 音声の文字起こし：
 {transcript}
-
----
-スライド：
-{filepath}
 """
 
     # generate content
