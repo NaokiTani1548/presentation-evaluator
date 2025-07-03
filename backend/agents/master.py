@@ -26,8 +26,8 @@ async def generate_summary(
     speech: Any,
     knowledge: Any,
     personas: List[Any],
+    db_session: AsyncSession,
     comparison: Any = None,
-    db_session: AsyncSession = Depends(get_dbsession),
 ) -> MasterSummary:
     """
     各エージェントの出力をもとに総評（全体サマリー）と各観点の5段階評価を生成する関数。

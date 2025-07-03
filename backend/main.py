@@ -34,6 +34,8 @@ from datetime import datetime
 from db.models.analysis_results import AnalysisResult
 
 import json
+from typing import Any
+
 
 
 # DB setup
@@ -80,19 +82,26 @@ async def evaluate(
         f.write(await audio.read())
 
     transcript = transcribe_audio(audio_path)
+    print("transcript has been created")
 
     async def result_stream():
+        print("構成エージェントの評価を開始します")
         structure = await asyncio.to_thread(evaluate_structure, transcript, slide_path)
+        print("構成エージェントの評価が完了しました")
         yield json.dumps(
             {"label": "構成エージェントの意見", "result": structure.model_dump_json()}
         ) + "\n"
 
+        print("話速エージェントの評価を開始します")
         speech = await asyncio.to_thread(analyze_speech_rate, audio_path)
+        print("話速エージェントの評価が完了しました")
         yield json.dumps(
             {"label": "話速エージェントの意見", "result": speech.model_dump_json()}
         ) + "\n"
 
+        print("知識レベルエージェントの評価を開始します")
         knowledge = await asyncio.to_thread(evaluate_prior_knowledge, transcript)
+        print("知識レベルエージェントの評価が完了しました")
         yield json.dumps(
             {
                 "label": "知識レベルエージェントの意見",
@@ -100,22 +109,28 @@ async def evaluate(
             }
         ) + "\n"
 
+        print("ペルソナエージェントの評価を開始します")
         personas = await asyncio.to_thread(
             evaluate_by_personas, transcript, ["同学部他学科の教授", "国語の先生"]
         )
+        print("ペルソナエージェントの評価が完了しました")
         for p in personas:
             yield json.dumps(
                 {"label": f"{p.persona}エージェントの意見", "result": p.feedback}
             ) + "\n"
 
+        print("比較AIの評価を開始します")
         comparison = await compare_presentations(user_id, transcript, session)
+        print("比較AIの評価が完了しました")
         yield json.dumps(
             {"label": "比較AIの意見", "result": comparison.model_dump_json()}
         ) + "\n"
 
-        master_summary = await asyncio.to_thread(
-            generate_summary, structure, speech, knowledge, personas, comparison
+        print("総評エージェントの評価を開始します")
+        master_summary = await generate_summary(
+            user_id, structure, speech, knowledge, personas, session, comparison
         )
+        print("総評エージェントの評価が完了しました")
         yield json.dumps(
             {
                 "label": "総評エージェントの意見",
@@ -126,6 +141,8 @@ async def evaluate(
         subject = "[AI評価] 発表評価が完了しました"
         body = f"{user_id}様\n\nAIによる発表評価が完了しました。\n\n総評:\n{master_summary.summary}\n\nご確認ください。"
         await asyncio.to_thread(send_notification_email, user_email, subject, body)
+
+    print("all agents have been evaluated")
 
     return StreamingResponse(result_stream(), media_type="text/event-stream")
 
@@ -213,6 +230,7 @@ async def test_structure(transcript: str = Form(...), slide: UploadFile = File(.
     result = evaluate_structure(transcript, slide_path)
     return result.model_dump()
 
+
 # これは backend/agents/master.py の generate_summary 関数のテスト用APIエンドポイントです
 @app.post("/test-master-summary/")
 async def test_master_summary(
@@ -244,28 +262,25 @@ async def test_master_summary(
 async def signup(
     user_name: str = Body(...),
     email_address: str = Body(...),
-    password: str = Body(...)
+    password: str = Body(...),
 ):
     # 必ず成功するダミーAPI
     return {
         "user_id": "12345",
         "user_name": user_name,
         "email_address": email_address,
-        "password": password
+        "password": password,
     }
 
 
 @app.post("/signin/test")
-async def signin(
-    user_id: str = Body(...),
-    password: str = Body(...)
-):
+async def signin(user_id: str = Body(...), password: str = Body(...)):
     # 必ず成功するダミーAPI
     return {
         "user_id": user_id,
         "user_name": "テストユーザー",
         "email_address": "test@example.com",
-        "password": password
+        "password": password,
     }
 
 
@@ -275,15 +290,19 @@ async def log_test(user_id: str = Form(...)):
     now = datetime.now()
     data = []
     for i in range(10):
-        dt = now - timedelta(days=9-i, hours=random.randint(0,23), minutes=random.randint(0,59))
-        data.append({
-            "user_id": user_id,
-            "date": dt.strftime("%Y-%m-%d %H:%M"),
-            "summary": f"テスト総評 test_data",
-            "structure_score": random.randint(1, 5),
-            "speech_score": random.randint(1, 5),
-            "knowledge_score": random.randint(1, 5),
-            "personas_score": random.randint(1, 5),
-            "comparison_score": random.randint(1, 5),
-        })
+        dt = now - timedelta(
+            days=9 - i, hours=random.randint(0, 23), minutes=random.randint(0, 59)
+        )
+        data.append(
+            {
+                "user_id": user_id,
+                "date": dt.strftime("%Y-%m-%d %H:%M"),
+                "summary": f"テスト総評 test_data",
+                "structure_score": random.randint(1, 5),
+                "speech_score": random.randint(1, 5),
+                "knowledge_score": random.randint(1, 5),
+                "personas_score": random.randint(1, 5),
+                "comparison_score": random.randint(1, 5),
+            }
+        )
     return data
