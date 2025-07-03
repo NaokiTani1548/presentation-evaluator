@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Depends
 from services.slide_parser import extract_pdf_feature
 from services.transcribe import transcribe_audio
 from agents.structure import evaluate_structure
@@ -7,17 +7,19 @@ from agents.prior_knowledge import evaluate_prior_knowledge
 from agents.persona import evaluate_by_personas
 from agents.comparison import compare_presentations
 
-from db.db import initialize_database, async_session
+from db.db import initialize_database, async_session, get_dbsession
 from db.db_router import router as db_router
 from contextlib import asynccontextmanager  # Lifecycle management
 import os
 from dotenv import load_dotenv
 from typing import List
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 # DB setup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-# called when server starts
+    # called when server starts
 
     # initialize database
     async with async_session() as session:
@@ -31,11 +33,17 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(db_router)
 
+
 @app.post("/evaluate/")
-async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...), prev_transcript: str = ""):
+async def evaluate(
+    slide: UploadFile = File(...),
+    audio: UploadFile = File(...),
+    user_id: str = Form(...),
+    session: AsyncSession = Depends(get_dbsession),
+):
     slide_path = f"uploads/{slide.filename}"
     audio_path = f"uploads/{audio.filename}"
-    
+
     with open(slide_path, "wb") as f:
         f.write(await slide.read())
     with open(audio_path, "wb") as f:
@@ -49,9 +57,7 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
     knowledge = evaluate_prior_knowledge(transcript, "大学生")
     personas = evaluate_by_personas(transcript, "同学部他学科の教授")
 
-    comparison = None
-    if prev_transcript:
-        comparison = compare_presentations(prev_transcript, transcript)
+    comparison = await compare_presentations(user_id, transcript, session)
 
     return {
         "slide_text": slide_text,
@@ -62,6 +68,7 @@ async def evaluate(slide: UploadFile = File(...), audio: UploadFile = File(...),
         "persona_feedback": personas,
         "comparison": comparison,
     }
+
 
 @app.post("/test-transcribe/")
 async def test_transcribe(audio: UploadFile = File(...)):
@@ -76,6 +83,7 @@ async def test_transcribe(audio: UploadFile = File(...)):
     transcript = transcribe_audio(audio_path)
     return {"transcript": transcript}
 
+
 @app.post("/test-speech-rate/")
 async def test_speech_rate(audio: UploadFile = File(...)):
     """
@@ -89,8 +97,11 @@ async def test_speech_rate(audio: UploadFile = File(...)):
     result = analyze_speech_rate(audio_path)
     return result.model_dump()  # pydanticモデルをdictで返す
 
+
 @app.post("/test-persona/")
-async def test_persona(transcript: UploadFile = File(...), personas: List[str] = Form(...)):
+async def test_persona(
+    transcript: UploadFile = File(...), personas: List[str] = Form(...)
+):
     """
     evaluate_by_personas関数の動作確認用エンドポイント。
     アップロードされた発表原稿と複数のペルソナ名を受け取り、各立場からのAIフィードバックを返します。
@@ -99,3 +110,12 @@ async def test_persona(transcript: UploadFile = File(...), personas: List[str] =
     result = evaluate_by_personas(transcript_text, personas)
     return [fb.model_dump() for fb in result]
 
+
+@app.post("/test-compare/")
+async def test_compare(
+    user_id: str = Form(...),
+    transcript: str = Form(...),
+    session: AsyncSession = Depends(get_dbsession),
+):
+    result = await compare_presentations(user_id, transcript, session)
+    return result.model_dump()
