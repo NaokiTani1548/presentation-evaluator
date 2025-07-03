@@ -104,7 +104,23 @@ const StepperSample: React.FC = () => {
               <Card key={idx} sx={{ minWidth: 250, maxWidth: 400 }}>
                 <CardContent>
                   <Typography variant="subtitle1" color="primary">{res.label}</Typography>
-                  <Typography variant="body2">{res.result}</Typography>
+                  {(() => {
+                    let parsed: any = res.result;
+                    if (typeof res.result === 'string') {
+                      try {
+                        parsed = JSON.parse(res.result);
+                      } catch {
+                        parsed = res.result;
+                      }
+                    }
+                    if (typeof parsed === 'object' && parsed !== null) {
+                      return Object.values(parsed).map((val, i) => (
+                        <Typography variant="body2" key={i} paragraph>{String(val)}</Typography>
+                      ));
+                    } else {
+                      return <Typography variant="body2">{String(parsed)}</Typography>;
+                    }
+                  })()}
                 </CardContent>
               </Card>
             ))}
@@ -119,7 +135,25 @@ const StepperSample: React.FC = () => {
               <Card key={idx} sx={{ minWidth: 250, maxWidth: 400 }}>
                 <CardContent>
                   <Typography variant="subtitle1" color="primary">{res.label}</Typography>
-                  <Typography variant="body2">{res.result}</Typography>
+                  {(() => {
+                    let parsed: any = res.result;
+                    if (typeof res.result === 'string') {
+                      try {
+                        parsed = JSON.parse(res.result);
+                      } catch {
+                        parsed = res.result;
+                      }
+                    }
+                    if (typeof parsed === 'object' && parsed !== null) {
+                      return Object.values(parsed).map((val, i) => (
+                        <Typography variant="body2" key={i} paragraph>
+                          {String(val)}
+                        </Typography>
+                      ));
+                    } else {
+                      return <Typography variant="body2">{String(parsed)}</Typography>;
+                    }
+                  })()}
                 </CardContent>
               </Card>
             ))}

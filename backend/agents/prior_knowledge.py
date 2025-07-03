@@ -24,16 +24,12 @@ def evaluate_prior_knowledge(transcript: str) -> str:
     # create client
     client = genai.Client(api_key=api_key)
 
-    # read transcript file
-    with open(transcript, "r") as f:
-        transcript_content = f.read()
-
     # create prompt
     prompt = f"""
 あなたは、プレゼンテーションの評価を行うエージェントの1人です。
 あなたには、特に、前提知識が過剰に必要な部分がないかを評価することが求められています。
 以下の音声の文字起こしをもとに、前提知識が過剰に必要な部分がないかを評価し、300文字以内で返答してください。
-音声の文字起こし：{transcript_content}
+音声の文字起こし：{transcript}
 """
 
     # generate content
@@ -42,7 +38,7 @@ def evaluate_prior_knowledge(transcript: str) -> str:
         contents=[
             genai.types.Part.from_bytes(
                 # encode transcript_content to bytes
-                data=transcript_content.encode("utf-8"),
+                data=transcript.encode("utf-8"),
                 mime_type="text/plain",
             ),
             prompt,
