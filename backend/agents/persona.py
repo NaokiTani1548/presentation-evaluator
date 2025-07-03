@@ -4,9 +4,11 @@ from google import genai
 from pydantic import BaseModel
 from typing import List
 
+
 class PersonaFeedback(BaseModel):
     persona: str
     feedback: str
+
 
 def evaluate_by_personas(transcript: str, personas: List[str]) -> List[PersonaFeedback]:
     """
@@ -27,7 +29,11 @@ def evaluate_by_personas(transcript: str, personas: List[str]) -> List[PersonaFe
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[prompt],
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": PersonaFeedback,
+            },
         )
-        feedback = response.candidates[0].content.parts[0].text if response.candidates else "フィードバック取得失敗"
-        results.append(PersonaFeedback(persona=persona, feedback=feedback))
+        persona_feedback = response.parsed
+        results.append(persona_feedback)
     return results
