@@ -11,9 +11,13 @@ import json
 import asyncio
 
 from db.db import initialize_database, async_session, get_dbsession
-from db.db_router import router as db_router
+
+# routers
+from db.analysis_results_router import router as analysis_results_router
+from db.users_router import router as users_router
+
 from contextlib import asynccontextmanager  # Lifecycle management
-import os
+
 from dotenv import load_dotenv
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +40,8 @@ load_dotenv()
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(db_router)
+app.include_router(analysis_results_router)
+app.include_router(users_router)
 
 app.add_middleware(
     CORSMiddleware,
