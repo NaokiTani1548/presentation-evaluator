@@ -145,18 +145,18 @@ const StepperSample: React.FC = () => {
                   <Tab key={idx} label={res.label} />
                 ))}
               </Tabs>
-              <Box sx={{ ml: 2, flex: 1 }}>
+              <Box sx={{ ml: 2, flex: 1, display: 'flex', justifyContent: 'center' }}>
                 <Card sx={{ minWidth: 250, maxWidth: 600 }}>
                   <CardContent>
                     <Typography variant="subtitle1" color="primary">{tabResults[tabIdx]?.label}</Typography>
-                    <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>{tabResults[tabIdx]?.result}</Typography>
+                    <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
                   </CardContent>
                 </Card>
               </Box>
             </Box>
           )}
           {summaryResult && (
-            <Box sx={{ mt: 4 }}>
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
               <Card sx={{ minWidth: 300, maxWidth: 700, border: '2px solid #1976d2', background: '#f5faff' }}>
                 <CardContent>
                   <Typography variant="h6" color="primary">{summaryResult.label}</Typography>
