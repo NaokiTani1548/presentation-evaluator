@@ -67,7 +67,7 @@ def evaluate_prior_knowledge(transcript: str) -> PriorKnowledgeEvaluation:
         },
     )
 
-    prior_knowledge_evaluation = response.parsed
+    prior_knowledge_evaluation: PriorKnowledgeEvaluation = response.parsed
 
     return prior_knowledge_evaluation
 

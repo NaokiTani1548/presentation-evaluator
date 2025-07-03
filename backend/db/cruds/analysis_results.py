@@ -82,6 +82,8 @@ async def post_analysis_result(
         db_session.add(db_analysis_result)
         await db_session.commit()
 
+        print("result has been successfully saved to database: ", db_analysis_result)
+
         return analysis_result
 
     except SQLAlchemyError as e:
