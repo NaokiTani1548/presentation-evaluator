@@ -95,6 +95,9 @@ const StepperSample: React.FC = () => {
     setTabIdx(0);
   };
 
+  // 動画プレビュー用URL
+  const videoUrl = videoFile ? URL.createObjectURL(videoFile) : '';
+
   // 総評だけ分離
   const summaryResult = results.find(r => r.label.includes('総評エージェントの意見'));
   const tabResults = results.filter(r => !r.label.includes('総評エージェントの意見'));
@@ -130,6 +133,11 @@ const StepperSample: React.FC = () => {
               <Typography sx={{ mb: 2 }}>評価中です。しばらくお待ちください...</Typography>
               <LinearProgress />
             </>
+          )}
+          {videoUrl && (
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+              <video src={videoUrl} controls style={{ width: 320, borderRadius: 8, marginBottom: 24 }} />
+            </Box>
           )}
           {tabResults.length > 0 && (
             <Box sx={{ mt: 2, display: 'flex' }}>
