@@ -30,6 +30,10 @@ from agents.audio_sample_creator import (
     create_audio_sample_from_text,
 )
 import io
+from datetime import datetime
+from db.models.analysis_results import AnalysisResult
+
+import json
 
 
 # DB setup
@@ -207,6 +211,32 @@ async def test_structure(transcript: str = Form(...), slide: UploadFile = File(.
     with open(slide_path, "wb") as f:
         f.write(await slide.read())
     result = evaluate_structure(transcript, slide_path)
+    return result.model_dump()
+
+# これは backend/agents/master.py の generate_summary 関数のテスト用APIエンドポイントです
+@app.post("/test-master-summary/")
+async def test_master_summary(
+    user_id: str = Form(...),
+    structure: str = Form(...),
+    speech: str = Form(...),
+    knowledge: str = Form(...),
+    personas: List[str] = Form(...),
+    comparison: str = Form(None),
+    db_session: AsyncSession = Depends(get_dbsession),
+):
+    """
+    generate_summary関数の動作確認用エンドポイント。
+    各観点のフィードバックを受け取り、総評と5段階評価を返します。
+    """
+    result = await generate_summary(
+        user_id=user_id,
+        structure=structure,
+        speech=speech,
+        knowledge=knowledge,
+        personas=personas,
+        comparison=comparison,
+        db_session=db_session,
+    )
     return result.model_dump()
 
 
