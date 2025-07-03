@@ -19,15 +19,17 @@ async def compare_presentations(
     # 前回の発表結果を取得
     prev_analysis_results = await get_analysis_results_by_user_id(db_session, user_id)
 
+    # プロンプトを作成
     prompt = create_prompt(prev_analysis_results, transcript)
 
-    print(prompt)
-
+    # gemini api keyを取得
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
 
+    # gemini apiクライアントを作成
     client = genai.Client(api_key=api_key)
 
+    # responseを取得
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=[prompt],
@@ -37,6 +39,7 @@ async def compare_presentations(
         },
     )
 
+    # レスポンスをパース
     comparison_evaluation = response.parsed
 
     return comparison_evaluation
@@ -56,5 +59,5 @@ def create_prompt(
 日付：{result.date}
 フィードバック内容：{result.ai_evaluation_result}
 """
-    print(prompt)
+
     return prompt
