@@ -207,7 +207,6 @@ const StepperSample: React.FC = () => {
               <Card sx={{ minWidth: 300, maxWidth: 700, border: '2px solid #1976d2', background: '#f5faff', p: 2 }}>
                 <CardContent>
                   <Typography variant="h6" color="primary" align="center">総評エージェントの意見</Typography>
-                  <Typography variant="body1" style={{ whiteSpace: 'pre-line' }}>{summaryResult.result}</Typography>
 
                   <Box sx={{ width: 350, height: 300, mx: 'auto' }}>
                     <ResponsiveContainer width="100%" height="100%">
