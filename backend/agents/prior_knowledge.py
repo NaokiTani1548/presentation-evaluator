@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel
-
+from typing import List, Literal
 
 """
 prior_knowledge.py
@@ -11,11 +11,22 @@ prior_knowledge.py
     - output: 前提知識が過剰に必要な部分がないかの評価
 """
 
+
+class PriorKnowledgeItem(BaseModel):
+    term: str
+    description: str
+    level: Literal["初歩的", "学部レベル", "専門家レベル"]
+    explained_level: Literal[
+        "説明なし", "用語のみ触れた", "簡潔に説明された", "丁寧に説明された"
+    ]
+
+
 class PriorKnowledgeEvaluation(BaseModel):
-    prior_knowledge_review: str
+    summary: str
+    prerequisites: List[PriorKnowledgeItem]
 
 
-def evaluate_prior_knowledge(transcript: str) -> str:
+def evaluate_prior_knowledge(transcript: str) -> PriorKnowledgeEvaluation:
 
     # read api key from .env
     load_dotenv()
@@ -26,10 +37,33 @@ def evaluate_prior_knowledge(transcript: str) -> str:
 
     # create prompt
     prompt = f"""
-あなたは、プレゼンテーションの評価を行うエージェントの1人です。
-あなたには、特に、前提知識が過剰に必要な部分がないかを評価することが求められています。
-以下の音声の文字起こしをもとに、前提知識が過剰に必要な部分がないかを評価し、300文字以内で返答してください。
-音声の文字起こし：{transcript}
+あなたは、プレゼンテーションに登場する専門用語とその説明の程度を評価するAIアシスタントです。
+
+目的は以下の2点です：
+1. この発表で必要とされる前提知識（用語・概念）を抽出すること
+2. それぞれの用語について、発表内でどの程度説明されていたか（説明の粒度）を判定すること
+
+# 出力形式（JSON）：
+{{
+  "summary": "前提知識の要求水準と全体的な説明の丁寧さに関する所感（1文）",
+  "prerequisites": [
+    {{
+      "term": "用語・概念名",
+      "description": "簡潔な説明",
+      "level": "初歩的" または "学部レベル" または "専門家レベル",
+      "explained_level": "説明なし" または "用語のみ触れた" または "簡潔に説明された" または "丁寧に説明された"
+    }},
+    ...
+  ]
+}}
+
+※出力は必ず有効なJSONで返してください。
+※マークダウンや補足説明は禁止です。
+※曖昧な語や、説明の有無が判定しづらい場合は「用語のみ触れた」としてください。
+
+---
+プレゼンテーションの文字起こし：
+{transcript}
 """
 
     # generate content
