@@ -85,6 +85,9 @@ const StepperSample: React.FC = () => {
                 // 知識レベルエージェントだけは従来通り
                 if (data.label.includes('知識レベルエージェント')) {
                   cards.push({ label: data.label, result: JSON.stringify(parsed) });
+                } else if (data.label.includes('総評エージェントの意見')) {
+                  // 総評エージェントはオブジェクトのまま格納
+                  cards.push({ label: data.label, result: parsed });
                 } else {
                   // それ以外は値だけを連結してテキスト化
                   const values = Object.values(parsed).filter(v => typeof v === 'string');
@@ -120,7 +123,7 @@ const StepperSample: React.FC = () => {
 
   // 総評だけ分離
   const summaryResult = results.find(r => r.label.includes('総評エージェントの意見'));
-  const tabResults = results.filter(r => !r.label.includes('総評エージェントの意見'));
+  const tabResults = results.filter(r => !r.label.includes('総評エージェントの意見') && r.label !== 'スライド修正案（構成改善用）');
 
   // レーダーチャート用データ生成
   let radarData: any[] = [];

@@ -134,12 +134,12 @@ async def evaluate(
         yield json.dumps(
             {
                 "label": "総評エージェントの意見",
-                "result": master_summary.model_dump_json(),
+                "result": master_summary.model_dump_json(),  # model_dump()でdictとして返す
             }
         ) + "\n"
 
         # 追加: speech_scoreが3点以下なら音声サンプル生成
-        if master_summary.speech_score <= 3:
+        if master_summary.speech_score <= 5:# テスト用に5設定
             audio_sample = await asyncio.to_thread(create_audio_sample_from_transcript, transcript)
             # バイナリデータをbase64エンコードして返す
             import base64
@@ -151,7 +151,7 @@ async def evaluate(
             }) + "\n"
 
         # 追加: structure_scoreが3点以下ならスライド修正案生成
-        if master_summary.structure_score <= 3:
+        if master_summary.structure_score <= 5:# テスト用に5設定
             from agents.slide_modification import modify_slide
             slide_mod_result = await asyncio.to_thread(modify_slide, slide_path)
             yield json.dumps({
@@ -161,7 +161,7 @@ async def evaluate(
             }) + "\n"
         # 全て完了後にメール通知
         subject = "[AI評価] 発表評価が完了しました"
-        body = f"{user_id}様\n\nAIによる発表評価が完了しました。\n\n総評:\n{master_summary.summary}\n\nご確認ください。"
+        body = f"AIによる発表評価が完了しました。\n\n総評:\n{master_summary.summary}\n\nご確認ください。"
         await asyncio.to_thread(send_notification_email, user_email, subject, body)
 
     print("all agents have been evaluated")
