@@ -39,7 +39,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            PRESENTATION-EVALUATOR
+            AUDIENCE_HUB
           </Typography>
         </Toolbar>
       </AppBar>

@@ -17,7 +17,7 @@ const Index: React.FC = () => {
       position: 'relative'
     }}>
       <h1 style={{ fontSize: '3.2rem', fontWeight: 'bold', marginBottom: '1.5rem', fontFamily: 'sans-serif', textAlign: 'center', letterSpacing: '0.04em' }}>
-        Speech Coach
+        Audience Hub
       </h1>
       <img
         src={agent}
