@@ -56,7 +56,7 @@ def call_first_request(slide_path: str) -> ResponseSchema:
 あなたは、スライド資料の専門的な改善案を出すAIアシスタントです。
 
 以下に、スライド全体に関する評価（12項目）と、スライド本体（PDF）を提供します。
-各スライドページに対して、それぞれ最大3件の修正提案を行ってください。
+各スライドページに対して、それぞれにつき必ず１件の修正提案を行ってください。
 必ず日本語で返してください。
 
 各修正提案では、以下のようにしてください：
@@ -113,7 +113,7 @@ def call_second_request(image_path: str, modification_issue: str, modification_s
     api_key = os.getenv("GEMINI_API_KEY")
     client = genai.Client(api_key=api_key)
     prompt = f"""
-この画像は研究発表で使用するスライドのうち、改善が必要な一ページです。
+あなたは、スライドデザインの専門家です。今から示すスライド画像に対して視認性とレイアウトのみを改善するための修正モックアップ画像を1枚生成してください。
 改善点：{modification_issue}
 改善内容：{modification_suggestion}
 改善した画像を出力して下さい
