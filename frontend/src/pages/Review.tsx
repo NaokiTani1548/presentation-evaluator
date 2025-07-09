@@ -20,6 +20,9 @@ const StepperSample: React.FC = () => {
   const [audioSample, setAudioSample] = useState<string | null>(null);
   const [slideModResult, setSlideModResult] = useState<any>(null);
   const [slideModText, setSlideModText] = useState<string | null>(null);
+  const user_id = localStorage.getItem('user_id');
+  const user_name = localStorage.getItem('user_name');
+  const email_address = localStorage.getItem('email_address');
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVideoFile(e.target.files[0]);
@@ -36,13 +39,13 @@ const StepperSample: React.FC = () => {
       setError('動画ファイルとPDFファイルの両方を選択してください');
       return;
     }
-    setUploading(true);
+    setUploading(true); //アップロード中
     setActiveStep(1); // 評価中へ
     try {
       const formData = new FormData();
-      formData.append('slide', pdfFile); // slide
-      formData.append('audio', videoFile); // audio
-      formData.append('user_id', '0');
+      formData.append('slide', pdfFile);
+      formData.append('audio', videoFile);
+      formData.append('user_id', user_id ?? '100');
       const response = await fetch('http://127.0.0.1:8000/evaluate/', {
         method: 'POST',
         body: formData,
@@ -59,44 +62,91 @@ const StepperSample: React.FC = () => {
           let lines = buffer.split('\n');
           buffer = lines.pop() || '';
           for (const line of lines) {
-            if (line.trim()) {
-              const data = JSON.parse(line);
-              // 新しいラベルの処理
-              if (data.label === 'お手本音声サンプル（話速改善用）' && data.type === 'audio/wav-base64') {
-                setAudioSample(data.result); // base64文字列を保存
-                continue;
-              }
-              if (data.label === 'スライド修正案（構成改善用）' && data.type === 'slide_modification') {
-                setSlideModResult(data.result?.image_base64 || null);
-                setSlideModText(data.result?.text || null);
-                continue;
-              }
-              // 通常のカードとして格納
-              let parsed: any = data.result;
-              if (typeof data.result === 'string') {
-                try {
-                  parsed = JSON.parse(data.result);
-                } catch {
-                  parsed = data.result;
-                }
-              }
-              // ここでObject型はテキスト化して格納
-              if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                // 知識レベルエージェントだけは従来通り
-                if (data.label.includes('知識レベルエージェント')) {
-                  cards.push({ label: data.label, result: JSON.stringify(parsed) });
-                } else if (data.label.includes('総評エージェントの意見')) {
-                  // 総評エージェントはオブジェクトのまま格納
-                  cards.push({ label: data.label, result: parsed });
-                } else {
-                  // それ以外は値だけを連結してテキスト化
-                  const values = Object.values(parsed).filter(v => typeof v === 'string');
-                  cards.push({ label: data.label, result: values.join('\n') });
-                }
-              } else {
-                cards.push({ label: data.label, result: parsed });
-              }
+          if (line.trim()) {
+            const data = JSON.parse(line);
+
+            // 1. お手本音声サンプル（話速改善用）
+            if (data.label === 'お手本音声サンプル（話速改善用）' && data.type === 'audio/wav-base64') {
+              setAudioSample(data.result);
+              return;
             }
+
+            // 2. スライド修正案（構成改善用）
+            if (data.label === 'スライド修正案（構成改善用）' && data.type === 'slide_modification') {
+              setSlideModResult(data.result?.image_base64 || null);
+              setSlideModText(data.result?.text || null);
+              return;
+            }
+
+            // 3. 構成エージェントの意見
+            if (data.label === '構成エージェントの意見') {
+              let parsed = data.result;
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
+              }
+              cards.push({ label: data.label, result: parsed.review ?? JSON.stringify(parsed) });
+              return;
+            }
+
+            // 4. 話速エージェントの意見
+            if (data.label === '話速エージェントの意見') {
+              let parsed = data.result;
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
+              }
+              const values = [parsed.speech_rate_review, parsed.speaking_style_review].filter(Boolean);
+              cards.push({ label: data.label, result: values.length ? values.join('\n') : JSON.stringify(parsed) });
+              return;
+            }
+
+            // 5. 知識レベルエージェントの意見
+            if (data.label.includes('知識レベルエージェント')) {
+              let parsed = data.result;
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
+              }
+              cards.push({ label: data.label, result: JSON.stringify(parsed) });
+              return;
+            }
+
+            // 6. ペルソナ別エージェントの意見
+            if (data.label.includes('エージェントの意見')) {
+              cards.push({ label: data.label, result: data.result });
+              return;
+            }
+
+            // 7. 比較AIの意見
+            if (data.label === '比較AIの意見') {
+              let parsed = data.result;
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
+              }
+              cards.push({ label: data.label, result: parsed.comparison_evaluation ?? JSON.stringify(parsed) });
+              return;
+            }
+
+            // 8. 総評エージェントの意見
+            if (data.label.includes('総評エージェントの意見')) {
+              let parsed = data.result;
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
+              }
+              cards.push({ label: data.label, result: parsed });
+              return;
+            }
+
+            // 9. その他（上記以外）
+            let parsed = data.result;
+            if (typeof parsed === 'string') {
+              try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
+            }
+            if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+              const values = Object.values(parsed).filter(v => typeof v === 'string');
+              cards.push({ label: data.label, result: values.join('\n') });
+            } else {
+              cards.push({ label: data.label, result: parsed });
+            }
+          }
           }
           setResults([...cards]);
         }
@@ -135,17 +185,15 @@ const StepperSample: React.FC = () => {
         parsed = JSON.parse(parsed);
       } catch {
         // fallback: テキスト+スコア形式
-        // テキスト末尾の5行がスコアである場合を考慮
         const lines = summaryResult.result.trim().split(/\r?\n/);
-        const last5 = lines.slice(-5);
-        const scores = last5.map(s => parseFloat(s)).filter(n => !isNaN(n));
-        if (scores.length === 5) {
+        const last5 = lines.slice(-5).map(s => parseFloat(s));
+        if (last5.every(n => !isNaN(n))) {
           radarData = [
-            { item: '構成', score: scores[0] },
-            { item: '話速', score: scores[1] },
-            { item: '知識レベル', score: scores[2] },
-            { item: 'ペルソナ', score: scores[3] },
-            { item: '比較', score: scores[4] },
+            { item: '構成', score: last5[0] },
+            { item: '話速', score: last5[1] },
+            { item: '知識レベル', score: last5[2] },
+            { item: 'ペルソナ', score: last5[3] },
+            { item: '比較', score: last5[4] },
           ];
           summaryText = lines.slice(0, -5).join('\n');
         }
@@ -162,10 +210,6 @@ const StepperSample: React.FC = () => {
       ];
     }
   }
-
-  const user_id = localStorage.getItem('user_id');
-  const user_name = localStorage.getItem('user_name');
-  const email_address = localStorage.getItem('email_address');
 
   // PriorKnowledge用テーブル描画関数
   const renderPriorKnowledgeTable = (priorKnowledge: any) => {
