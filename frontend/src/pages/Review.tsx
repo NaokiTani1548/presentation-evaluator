@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Stepper, Step, StepLabel, Button, Typography, Paper, Box, LinearProgress, Alert, Card, CardContent, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { mockEvaluationStream } from '../mock/mockEvaluationResponse';
 
 const steps = ['アップロード', '評価中', '完了'];
 
@@ -20,6 +21,13 @@ const StepperSample: React.FC = () => {
   const [audioSample, setAudioSample] = useState<string | null>(null);
   const [slideModResult, setSlideModResult] = useState<any>(null);
   const [slideModText, setSlideModText] = useState<string | null>(null);
+  const [radarData, setRadarData] = useState<any[]>([]);
+  const [summaryText, setSummaryText] = useState('');
+  const user_id = localStorage.getItem('user_id');
+  const user_name = localStorage.getItem('user_name');
+  const email_address = localStorage.getItem('email_address');
+
+  const isDevMode = false;
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVideoFile(e.target.files[0]);
@@ -36,72 +44,67 @@ const StepperSample: React.FC = () => {
       setError('動画ファイルとPDFファイルの両方を選択してください');
       return;
     }
-    setUploading(true);
+    setUploading(true); //アップロード中
     setActiveStep(1); // 評価中へ
     try {
+      const cards: ResultCard[] = [];
+
+      if (isDevMode) {
+        for (const data of mockEvaluationStream) {
+          processData(data, cards);
+        }
+
+        setResults([...cards]);
+        setActiveStep(2);
+        return;
+      }
+
+      // 実際のアップロード処理（本番モード）
       const formData = new FormData();
-      formData.append('slide', pdfFile); // slide
-      formData.append('audio', videoFile); // audio
-      formData.append('user_id', '0');
+      formData.append('slide', pdfFile);
+      formData.append('audio', videoFile);
+      formData.append('user_id', user_id ?? '100');
+
       const response = await fetch('http://127.0.0.1:8000/evaluate/', {
         method: 'POST',
         body: formData,
       });
+
       if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
-        let cards: ResultCard[] = [];
+
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          if (done) {
+            console.log("📦 ストリーム終了");
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          console.log("📥 chunk 受信:", chunk);
+          buffer += chunk;
+
           let lines = buffer.split('\n');
           buffer = lines.pop() || '';
+
           for (const line of lines) {
-            if (line.trim()) {
+            if (!line.trim()) continue;
+
+            try {
               const data = JSON.parse(line);
-              // 新しいラベルの処理
-              if (data.label === 'お手本音声サンプル（話速改善用）' && data.type === 'audio/wav-base64') {
-                setAudioSample(data.result); // base64文字列を保存
-                continue;
-              }
-              if (data.label === 'スライド修正案（構成改善用）' && data.type === 'slide_modification') {
-                setSlideModResult(data.result?.image_base64 || null);
-                setSlideModText(data.result?.text || null);
-                continue;
-              }
-              // 通常のカードとして格納
-              let parsed: any = data.result;
-              if (typeof data.result === 'string') {
-                try {
-                  parsed = JSON.parse(data.result);
-                } catch {
-                  parsed = data.result;
-                }
-              }
-              // ここでObject型はテキスト化して格納
-              if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                // 知識レベルエージェントだけは従来通り
-                if (data.label.includes('知識レベルエージェント')) {
-                  cards.push({ label: data.label, result: JSON.stringify(parsed) });
-                } else if (data.label.includes('総評エージェントの意見')) {
-                  // 総評エージェントはオブジェクトのまま格納
-                  cards.push({ label: data.label, result: parsed });
-                } else {
-                  // それ以外は値だけを連結してテキスト化
-                  const values = Object.values(parsed).filter(v => typeof v === 'string');
-                  cards.push({ label: data.label, result: values.join('\n') });
-                }
-              } else {
-                cards.push({ label: data.label, result: parsed });
-              }
+              console.log("✅ パース成功:", data);
+              processData(data, cards);
+            } catch (err) {
+              console.error("❌ JSON パース失敗:", err, line);
             }
           }
-          setResults([...cards]);
         }
+
+        setResults([...cards]);
+        setActiveStep(2);
       }
-      setActiveStep(2); // 完了へ
     } catch (e) {
       setError('アップロードまたは評価に失敗しました');
     } finally {
@@ -118,54 +121,106 @@ const StepperSample: React.FC = () => {
     setTabIdx(0);
   };
 
-  // 動画プレビュー用URL
-  const videoUrl = videoFile ? URL.createObjectURL(videoFile) : '';
+  const processData = (data: any, cards: ResultCard[]) => {
+    // 1. お手本音声サンプル
+    if (data.label === 'お手本音声サンプル（話速改善用）' && data.type === 'audio/wav-base64') {
+      console.log("🎵 音声サンプル取得:", data.result);
+      setAudioSample(data.result);
+      return;
+    }
 
-  // 総評だけ分離
-  const summaryResult = results.find(r => r.label.includes('総評エージェントの意見'));
-  const tabResults = results.filter(r => !r.label.includes('総評エージェントの意見') && r.label !== 'スライド修正案（構成改善用）');
+    // 2. スライド修正案
+    if (data.label === 'スライド修正案（構成改善用）' && data.type === 'slide_modification') {
+      console.log("🖼 スライド修正案取得:", data.result?.text || null);
+      setSlideModResult(data.result?.image_base64 || null);
+      setSlideModText(data.result?.text || null);
+      return;
+    }
 
-  // レーダーチャート用データ生成
-  let radarData: any[] = [];
-  let summaryText = '';
-  if (summaryResult) {
-    let parsed: any = summaryResult.result;
-    if (typeof parsed === 'string') {
+    // 3. 構成エージェントの意見
+    if (data.label === '構成エージェントの意見') {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: parsed.review ?? JSON.stringify(parsed) });
+      return;
+    }
+
+    // 4. 話速エージェントの意見
+    if (data.label === '話速エージェントの意見') {
+      let parsed = parseResult(data.result);
+      const values = [parsed.speech_rate_review, parsed.speaking_style_review].filter(Boolean);
+      cards.push({ label: data.label, result: values.length ? values.join('\n') : JSON.stringify(parsed) });
+      return;
+    }
+
+    // 5. 知識レベルエージェント
+    if (data.label.includes('知識レベルエージェント')) {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: JSON.stringify(parsed) });
+      return;
+    }
+
+    // 7. 比較AIの意見
+    if (data.label === '比較AIの意見') {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: parsed.comparison_evaluation ?? JSON.stringify(parsed) });
+      return;
+    }
+
+    // 8. 総評エージェントの意見
+    if (data.label.includes('総評エージェントの意見')) {
+      let parsed = parseResult(data.result);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const scores = [
+          parsed.structure_score,
+          parsed.speech_score,
+          parsed.knowledge_score,
+          parsed.personas_score,
+          parsed.comparison_score,
+        ].map(s => typeof s === 'number' ? s : 0);
+        const summary = parsed.summary || '';
+
+        setRadarData([
+          { item: '構成', score: scores[0] },
+          { item: '話速', score: scores[1] },
+          { item: '知識レベル', score: scores[2] },
+          { item: 'ペルソナ', score: scores[3] },
+          { item: '比較', score: scores[4] },
+        ]);
+        setSummaryText(summary);
+      }
+      return;
+    }
+
+    // 6. ペルソナ別エージェントの意見
+    if (data.label.includes('エージェントの意見')) {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: parsed });
+      return;
+    }
+
+    // 9. その他
+    let parsed = parseResult(data.result);
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      const values = Object.values(parsed).filter(v => typeof v === 'string');
+      cards.push({ label: data.label, result: values.join('\n') });
+    } else {
+      cards.push({ label: data.label, result: parsed });
+    }
+  };
+
+  const parseResult = (raw: any) => {
+    if (typeof raw === 'string') {
       try {
-        parsed = JSON.parse(parsed);
+        return JSON.parse(raw);
       } catch {
-        // fallback: テキスト+スコア形式
-        // テキスト末尾の5行がスコアである場合を考慮
-        const lines = summaryResult.result.trim().split(/\r?\n/);
-        const last5 = lines.slice(-5);
-        const scores = last5.map(s => parseFloat(s)).filter(n => !isNaN(n));
-        if (scores.length === 5) {
-          radarData = [
-            { item: '構成', score: scores[0] },
-            { item: '話速', score: scores[1] },
-            { item: '知識レベル', score: scores[2] },
-            { item: 'ペルソナ', score: scores[3] },
-            { item: '比較', score: scores[4] },
-          ];
-          summaryText = lines.slice(0, -5).join('\n');
-        }
+        return raw;
       }
     }
-    if (typeof parsed === 'object' && parsed !== null && radarData.length === 0) {
-      summaryText = parsed.summary || '';
-      radarData = [
-        { item: '構成', score: parsed.structure_score ?? 0 },
-        { item: '話速', score: parsed.speech_score ?? 0 },
-        { item: '知識レベル', score: parsed.knowledge_score ?? 0 },
-        { item: 'ペルソナ', score: parsed.personas_score ?? 0 },
-        { item: '比較', score: parsed.comparison_score ?? 0 },
-      ];
-    }
-  }
+    return raw;
+  };
 
-  const user_id = localStorage.getItem('user_id');
-  const user_name = localStorage.getItem('user_name');
-  const email_address = localStorage.getItem('email_address');
+  // 動画プレビュー用URL
+  const videoUrl = videoFile ? URL.createObjectURL(videoFile) : '';
 
   // PriorKnowledge用テーブル描画関数
   const renderPriorKnowledgeTable = (priorKnowledge: any) => {
@@ -255,6 +310,7 @@ const StepperSample: React.FC = () => {
           {activeStep === 1 && (
             <>
               <Typography sx={{ mb: 2 }}>評価中です。しばらくお待ちください...</Typography>
+              <Typography sx={{ mb: 2 }}>! リロードしないでください</Typography>
               <LinearProgress />
             </>
           )}
@@ -263,7 +319,7 @@ const StepperSample: React.FC = () => {
               <video src={videoUrl} controls style={{ width: 320, borderRadius: 8, marginBottom: 24 }} />
             </Box>
           )}
-          {tabResults.length > 0 && (
+          {results.length > 0 && (
             <Box sx={{ mt: 2, display: 'flex' }}>
               <Tabs
                 orientation="vertical"
@@ -273,17 +329,17 @@ const StepperSample: React.FC = () => {
                 scrollButtons="auto"
                 sx={{ borderRight: 1, borderColor: 'divider', minWidth: 180 }}
               >
-                {tabResults.map((res, idx) => (
+                {results.map((res, idx) => (
                   <Tab key={idx} label={res.label} />
                 ))}
               </Tabs>
               <Box sx={{ ml: 2, flex: 1, display: 'flex', justifyContent: 'center' }}>
                 <Card sx={{ minWidth: 250, maxWidth: 600 }}>
                   <CardContent>
-                    <Typography variant="subtitle1" color="primary">{tabResults[tabIdx]?.label}</Typography>
+                    <Typography variant="subtitle1" color="primary">{results[tabIdx]?.label}</Typography>
                     {/* PriorKnowledge用テーブル表示 */}
-                    {tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (() => {
-                      let parsed: any = tabResults[tabIdx]?.result;
+                    {results[tabIdx]?.label.includes('知識レベルエージェント') && (() => {
+                      let parsed: any = results[tabIdx]?.result;
                       if (typeof parsed === 'string') {
                         try { parsed = JSON.parse(parsed); } catch { parsed = null; }
                       }
@@ -295,19 +351,19 @@ const StepperSample: React.FC = () => {
                           </>
                         );
                       } else {
-                        return <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>;
+                        return <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{results[tabIdx]?.result}</Typography>;
                       }
                     })()}
                     {/* 通常のテキスト表示 */}
-                    {!tabResults[tabIdx]?.label.includes('知識レベルエージェント') && (
-                      <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{tabResults[tabIdx]?.result}</Typography>
+                    {!results[tabIdx]?.label.includes('知識レベルエージェント') && (
+                      <Typography variant="body2" style={{ whiteSpace: 'pre-line' }} >{results[tabIdx]?.result}</Typography>
                     )}
                   </CardContent>
                 </Card>
               </Box>
             </Box>
           )}
-          {summaryResult && (
+          {summaryText != '' && (
             <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <Card sx={{ minWidth: 300, maxWidth: 700, border: '2px solid #1976d2', background: '#f5faff', p: 2 }}>
                 <CardContent>
