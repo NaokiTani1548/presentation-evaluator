@@ -2,6 +2,7 @@ import re
 
 from fastapi import APIRouter, Depends, Form  # Formを追加
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
 from .db import get_dbsession
 from typing import List
@@ -50,9 +51,13 @@ async def get_analysis_results_by_user_id_post(
     # 必要な情報だけ抽出し、日付順にソート
     def extract(item):
         # created_at, summary, 各scoreを抽出
+        raw_date = getattr(item, "created_at", None) or getattr(item, "date", None)
+        formatted_date = (
+            raw_date.strftime("%Y-%m-%d %H:%M:%S") if isinstance(raw_date, datetime) else ""
+        )
         return {
             "user_id": item.user_id,
-            "date": getattr(item, "created_at", None) or getattr(item, "date", None) or "",
+            "date": formatted_date,
             "summary": getattr(item, "summary", ""),
             "structure_score": getattr(item, "structure_score", None),
             "speech_score": getattr(item, "speech_score", None),
@@ -70,3 +75,4 @@ async def delete_all_analysis_results(
     db: AsyncSession = Depends(get_dbsession),
 ) -> None:
     return await delete_analysis_results_table_for_development(db)
+
