@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Stepper, Step, StepLabel, Button, Typography, Paper, Box, LinearProgress, Alert, Card, CardContent, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { mockEvaluationStream } from '../mock/mockEvaluationResponse';
 
 const steps = ['アップロード', '評価中', '完了'];
 
@@ -26,6 +27,8 @@ const StepperSample: React.FC = () => {
   const user_name = localStorage.getItem('user_name');
   const email_address = localStorage.getItem('email_address');
 
+  const isDevMode = false;
+
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setVideoFile(e.target.files[0]);
   };
@@ -44,25 +47,41 @@ const StepperSample: React.FC = () => {
     setUploading(true); //アップロード中
     setActiveStep(1); // 評価中へ
     try {
+      const cards: ResultCard[] = [];
+
+      if (isDevMode) {
+        for (const data of mockEvaluationStream) {
+          processData(data, cards);
+        }
+
+        setResults([...cards]);
+        setActiveStep(2);
+        return;
+      }
+
+      // 実際のアップロード処理（本番モード）
       const formData = new FormData();
       formData.append('slide', pdfFile);
       formData.append('audio', videoFile);
       formData.append('user_id', user_id ?? '100');
+
       const response = await fetch('http://127.0.0.1:8000/evaluate/', {
         method: 'POST',
         body: formData,
       });
+
       if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
-        let cards: ResultCard[] = [];
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
             console.log("📦 ストリーム終了");
             break;
           }
+
           const chunk = decoder.decode(value, { stream: true });
           console.log("📥 chunk 受信:", chunk);
           buffer += chunk;
@@ -71,137 +90,21 @@ const StepperSample: React.FC = () => {
           buffer = lines.pop() || '';
 
           for (const line of lines) {
-            if (line.trim()) {
-              let data;
-              try {
-                data = JSON.parse(line);
-                console.log("✅ パース成功:", data);
-              } catch (err) {
-                console.error("❌ JSON パース失敗:", err, line);
-                continue;
-              }
+            if (!line.trim()) continue;
 
-              // 1. お手本音声サンプル（話速改善用）
-              if (data.label === 'お手本音声サンプル（話速改善用）' && data.type === 'audio/wav-base64') {
-                console.log("🎵 音声サンプル取得:", data.result);
-                setAudioSample(data.result);
-                continue;
-              }
-
-              // 2. スライド修正案（構成改善用）
-              if (data.label === 'スライド修正案（構成改善用）' && data.type === 'slide_modification') {
-                console.log("🖼 スライド修正案取得:", data.result?.text || null);
-                setSlideModResult(data.result?.image_base64 || null);
-                setSlideModText(data.result?.text || null);
-                continue;
-              }
-
-              // 3. 構成エージェントの意見
-              if (data.label === '構成エージェントの意見') {
-                let parsed = data.result;
-                if (typeof parsed === 'string') {
-                  try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
-                }
-                console.log("構成エージェント:", parsed.review ?? JSON.stringify(parsed))
-                cards.push({ label: data.label, result: parsed.review ?? JSON.stringify(parsed) });
-                continue;
-              }
-
-              // 4. 話速エージェントの意見
-              if (data.label === '話速エージェントの意見') {
-                let parsed = data.result;
-                if (typeof parsed === 'string') {
-                  try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
-                }
-                const values = [parsed.speech_rate_review, parsed.speaking_style_review].filter(Boolean);
-                console.log("話速エージェント:", values);
-                cards.push({ label: data.label, result: values.length ? values.join('\n') : JSON.stringify(parsed) });
-                continue;
-              }
-
-              // 5. 知識レベルエージェントの意見
-              if (data.label.includes('知識レベルエージェント')) {
-                let parsed = data.result;
-                if (typeof parsed === 'string') {
-                  try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
-                }
-                console.log("知識レベルエージェント:", parsed);
-                cards.push({ label: data.label, result: JSON.stringify(parsed) });
-                continue;
-              }
-
-              // 7. 比較AIの意見
-              if (data.label === '比較AIの意見') {
-                let parsed = data.result;
-                if (typeof parsed === 'string') {
-                  try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
-                }
-                console.log("比較AIの意見:", parsed.comparison_evaluation ?? JSON.stringify(parsed));
-                cards.push({ label: data.label, result: parsed.comparison_evaluation ?? JSON.stringify(parsed) });
-                continue;
-              }
-
-              // 8. 総評エージェントの意見
-              if (data.label.includes('総評エージェントの意見')) {
-                let parsed = data.result;
-                let scores: number[] = [];
-                let summary = '';
-                if (typeof parsed === 'string') {
-                  try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
-                }
-                if (typeof parsed === 'object' && parsed !== null) {
-                  scores = [
-                    parsed.structure_score,
-                    parsed.speech_score,
-                    parsed.knowledge_score,
-                    parsed.personas_score,
-                    parsed.comparison_score,
-                  ].map(s => typeof s === 'number' ? s : 0);
-                  summary = parsed.summary || '';
-                }
-                if (scores.length === 5) {
-                  setRadarData([
-                    { item: '構成', score: scores[0] },
-                    { item: '話速', score: scores[1] },
-                    { item: '知識レベル', score: scores[2] },
-                    { item: 'ペルソナ', score: scores[3] },
-                    { item: '比較', score: scores[4] },
-                  ]);
-                  setSummaryText(summary);
-                }
-                continue;
-              }
-
-               // 6. ペルソナ別エージェントの意見
-              if (data.label.includes('エージェントの意見')) {
-                let parsed = data.result;
-                if (typeof parsed === 'string') {
-                  try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
-                }
-                console.log("ペルソナ別エージェントの意見:", parsed);
-                cards.push({ label: data.label, result: parsed });
-                continue;
-              }
-
-              // 9. その他（上記以外）
-              let parsed = data.result;
-              if (typeof parsed === 'string') {
-                try { parsed = JSON.parse(parsed); } catch { /* ignore */ }
-              }
-              if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                const values = Object.values(parsed).filter(v => typeof v === 'string');
-                cards.push({ label: data.label, result: values.join('\n') });
-              } else {
-                cards.push({ label: data.label, result: parsed });
-              }
-            }else {
-              continue;
+            try {
+              const data = JSON.parse(line);
+              console.log("✅ パース成功:", data);
+              processData(data, cards);
+            } catch (err) {
+              console.error("❌ JSON パース失敗:", err, line);
             }
           }
         }
+
         setResults([...cards]);
+        setActiveStep(2);
       }
-      setActiveStep(2); // 完了へ
     } catch (e) {
       setError('アップロードまたは評価に失敗しました');
     } finally {
@@ -216,6 +119,104 @@ const StepperSample: React.FC = () => {
     setError(null);
     setResults([]);
     setTabIdx(0);
+  };
+
+  const processData = (data: any, cards: ResultCard[]) => {
+    // 1. お手本音声サンプル
+    if (data.label === 'お手本音声サンプル（話速改善用）' && data.type === 'audio/wav-base64') {
+      console.log("🎵 音声サンプル取得:", data.result);
+      setAudioSample(data.result);
+      return;
+    }
+
+    // 2. スライド修正案
+    if (data.label === 'スライド修正案（構成改善用）' && data.type === 'slide_modification') {
+      console.log("🖼 スライド修正案取得:", data.result?.text || null);
+      setSlideModResult(data.result?.image_base64 || null);
+      setSlideModText(data.result?.text || null);
+      return;
+    }
+
+    // 3. 構成エージェントの意見
+    if (data.label === '構成エージェントの意見') {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: parsed.review ?? JSON.stringify(parsed) });
+      return;
+    }
+
+    // 4. 話速エージェントの意見
+    if (data.label === '話速エージェントの意見') {
+      let parsed = parseResult(data.result);
+      const values = [parsed.speech_rate_review, parsed.speaking_style_review].filter(Boolean);
+      cards.push({ label: data.label, result: values.length ? values.join('\n') : JSON.stringify(parsed) });
+      return;
+    }
+
+    // 5. 知識レベルエージェント
+    if (data.label.includes('知識レベルエージェント')) {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: JSON.stringify(parsed) });
+      return;
+    }
+
+    // 7. 比較AIの意見
+    if (data.label === '比較AIの意見') {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: parsed.comparison_evaluation ?? JSON.stringify(parsed) });
+      return;
+    }
+
+    // 8. 総評エージェントの意見
+    if (data.label.includes('総評エージェントの意見')) {
+      let parsed = parseResult(data.result);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const scores = [
+          parsed.structure_score,
+          parsed.speech_score,
+          parsed.knowledge_score,
+          parsed.personas_score,
+          parsed.comparison_score,
+        ].map(s => typeof s === 'number' ? s : 0);
+        const summary = parsed.summary || '';
+
+        setRadarData([
+          { item: '構成', score: scores[0] },
+          { item: '話速', score: scores[1] },
+          { item: '知識レベル', score: scores[2] },
+          { item: 'ペルソナ', score: scores[3] },
+          { item: '比較', score: scores[4] },
+        ]);
+        setSummaryText(summary);
+      }
+      return;
+    }
+
+    // 6. ペルソナ別エージェントの意見
+    if (data.label.includes('エージェントの意見')) {
+      let parsed = parseResult(data.result);
+      cards.push({ label: data.label, result: parsed });
+      return;
+    }
+
+    // 9. その他
+    let parsed = parseResult(data.result);
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      const values = Object.values(parsed).filter(v => typeof v === 'string');
+      cards.push({ label: data.label, result: values.join('\n') });
+    } else {
+      cards.push({ label: data.label, result: parsed });
+    }
+  };
+
+  const parseResult = (raw: any) => {
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return raw;
+      }
+    }
+    return raw;
   };
 
   // 動画プレビュー用URL
