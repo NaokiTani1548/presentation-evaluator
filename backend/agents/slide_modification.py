@@ -98,7 +98,7 @@ def save_target_page_as_png(slide_path: str, target_page_number: int, output_pat
     # fitz（PyMuPDF）でPDFを開く
     doc = fitz.open(slide_path)
     # ページ番号は0始まりなので注意
-    page = doc[target_page_number]
+    page = doc[target_page_number - 1]
     # ページをピクセルマップに変換
     pix = page.get_pixmap()
     # PNGとして保存
